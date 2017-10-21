@@ -10,25 +10,25 @@ import scipy
 print("Podaj L1,L2,L3,L4")
 
 L=[float(x) for x in input().strip().split()]
-print("k=")
+print("k=",end='')
 k=float(input().strip())
-print("S=")
+print("S=",end='')
 S=float(input().strip())
-print("q=")
+print("q=",end='')
 q=float(input().strip())
-print("alfa=")
+print("alfa=",end='')
 alfa=float(input().strip())
-print("tInf=")
+print("tInf=",end='')
 tInf=float(input().strip())
 
 C=[k*S/l for l in L]
 
 A=numpy.array([
-   [C[1],-C[1],0,0,0],
-   [-C[1],C[1]+C[2],-C[2],0,0],
-   [0,-C[2],C[2]+C[3],-C[3],0],
-   [0,0,-C[3],C[3]+C[4],-C[4]],
-   [0,0,0,-C[4],C[4]+alfa*S]
+   [C[0],-C[0],0,0,0],
+   [-C[0],C[0]+C[1],-C[1],0,0],
+   [0,-C[1],C[1]+C[2],-C[2],0],
+   [0,0,-C[2],C[2]+C[3],-C[3]],
+   [0,0,0,-C[3],C[3]+alfa*S]
    ])
 
 P=numpy.array([
@@ -41,4 +41,5 @@ P=numpy.array([
 
 P=-P
 
-print(t=scipy.solve(A,P))
+t=scipy.linalg.solve(A,P)
+print(t)
