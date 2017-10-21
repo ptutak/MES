@@ -5,6 +5,7 @@ Created on Sat Oct 21 11:01:53 2017
 @author: PiotrTutak
 """
 import numpy
+import scipy
 
 print("Podaj L1,L2,L3,L4")
 
@@ -30,11 +31,14 @@ A=numpy.array([
    [0,0,0,-C[4],C[4]+alfa*S]
    ])
 
-B=numpy.array([
-        -q*S,
+P=numpy.array([
+        q*S,
         0,
         0,
         0,
-        alfa*S*tInf
+        -alfa*S*tInf
         ])
 
+P=-P
+
+print(t=scipy.solve(A,P))
