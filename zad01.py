@@ -46,5 +46,5 @@ P=numpy.array([
 
 P=-P
 
-t=scipy.linalg.solve(A,P)
+t=numpy.linalg.solve(A,P)
 print(t)
