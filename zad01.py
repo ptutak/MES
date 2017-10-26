@@ -10,6 +10,11 @@ import scipy
 print("Podaj L1,L2,L3,L4")
 
 L=[float(x) for x in input().strip().split()]
+
+print('Podaj k,S,q,alfa,tInf')
+
+k,S,q,alfa,tInf=(float(x) for x in input().strip().split())
+"""
 print("k=",end='')
 k=float(input().strip())
 print("S=",end='')
@@ -20,7 +25,7 @@ print("alfa=",end='')
 alfa=float(input().strip())
 print("tInf=",end='')
 tInf=float(input().strip())
-
+"""
 C=[k*S/l for l in L]
 
 A=numpy.array([
