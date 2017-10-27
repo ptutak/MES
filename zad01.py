@@ -16,7 +16,7 @@ print('Podaj k S q alfa tInf')
 k,S,q,alfa,tInf=(float(x) for x in input().strip().split())
 
 C=[k*S/l for l in L]
-L=[sum(L[:i] for i in range(1,len(L)+1)]
+L=[sum(L[:i]) for i in range(len(L)+1)]
        
 A=np.array([
    [C[0],-C[0],0,0,0],
@@ -39,5 +39,5 @@ P=-P
 #t=np.linalg.solve(A,P)
 t=lg.solve(A,P)
 print(t)
-plt.plot(L,t)
+plt.plot(L,t,'ro')
 plt.show()
