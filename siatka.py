@@ -5,11 +5,10 @@ Created on Fri Nov  3 13:26:28 2017
 @author: Piotrek
 """
 
-H,B,nH,nB=[float(x) for x in input().strip().split()]
 
 
 class Node:
-    def __init__(self,x,y,t,edge=0):
+    def __init__(self,x,y,t=0,edge=0):
         self.x=x
         self.y=y
         self.t=t
@@ -18,22 +17,34 @@ class Node:
         return "({0},{1})".format(self.x,self.y)
 
 class Element:
-    def __init__(self,nodes):
-        id=[]
-        x=nodes[0].x
-        y=nodes[0].y
-        id[0],id[1],id[2],id[3]=x*5+y+1,(x+1)*5+y+1,(x+1)*5+y+2,x*5+y+2
-        self.id=id
+    def __init__(self,nodes,ids):
         self.nodes=nodes
-        self.x=x
-        self.y=y
-        self.surface=[all([nodes[i%4].edge,nodes[i%4+1].edge] for i in range(3,7))]
+        self.ids=ids
+        self.surface=[all([nodes[(i+3)%4].edge,nodes[(i+4)%4].edge] for i in range(4))]
     def __repr__(self):
-        repr="{3} {2}\n{0} {1}\n{4}".format(*self.id,self.surface)
-        return repr
+        rep="{3} {2}\n{0} {1}\n{4!r}\n".format(*self.ids,self.surface)
+        return rep
+    def __str__(self):
+        strg="{3} {2}\n{0} {1}\n{4!r}\n".format(*self.nodes,self.surface)
+        return strg
+
     
 class Grid:
-    def __init__(self,nH,nB,x=0,y=0):
+    def __init__(self,nB,nH,db,dh,x=0,y=0,t=0):
+        nodes=[]
+        for i in range(nB):
+            for j in range(nH):
+                nodes.append(Node(x+db*i,y+dh*j,t))
+        self.nodes=nodes
+        elements=[]
+        for i in range(nB-1):
+            for j in range(nH-1):
+                elements.append(Element([nodes[i*nH+j],nodes[(i+1)*nH+j],nodes[(i+1)*nH+j+1],nodes[i*nH+j+1]],[i*nH+j,(i+1)*nH+j,(i+1)*nH+j+1,i*nH+j+1]))
+        self.elements=elements
+    def __getitem__(self,index):
+        return self.nodes[index]
+    def __call__(self,index):
+        return self.elements[index]
         
 class GlobalData:
     def __init__(self,B,H,nB,nH):
@@ -43,9 +54,12 @@ class GlobalData:
         self.nB=nB
         self.ne=(nH-1)*(nB-1)
         self.nn=nH*nB
-        
+    def generateGrid(self):
+        self.grid=Grid(self.nB,self.nH,self.B/(self.nB-1),self.H/(self.nH-1))
+    def printGrid(self):
+        print(self.grid)
 
-
-
-
-[Node(x,y,t,any(surface[0:2])),Node(x+1,y,t,any(surface[1:3])),Node(x+1,y+1,t,any(surface[2:4])),Node(x,y+1,t,any(surface[3]))]
+gD=GlobalData(1.0,1.0,5,5)
+gD.generateGrid()
+print(gD.grid[0],gD.grid[4],gD.grid[20],gD.grid[24])
+print(gD.grid(0),gD.grid(3),gD.grid(12),gD.grid(15),sep='')
