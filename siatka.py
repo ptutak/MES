@@ -59,7 +59,20 @@ class GlobalData:
     def printGrid(self):
         print(self.grid)
 
-gD=GlobalData(1.0,1.0,5,5)
-gD.generateGrid()
-print(gD.grid[0],gD.grid[4],gD.grid[20],gD.grid[24])
-print(gD.grid(0),gD.grid(3),gD.grid(12),gD.grid(15),sep='')
+
+if __name__=='__main__':
+    with open('data.txt') as f:
+        for line in f:
+            if f[0]=='#':
+                continue
+            else:
+                inp=line.strip().split(',')
+                B=float(inp[0].strip())
+                H=float(inp[1].strip())
+                nB=int(inp[2].strip())
+                nH=int(inp[3].strip())
+                break
+    gD=GlobalData(B,H,nB,nH)
+    gD.generateGrid()
+    print(gD.grid[0],gD.grid[4],gD.grid[20],gD.grid[24])
+    print(gD.grid(0),gD.grid(3),gD.grid(12),gD.grid(15),sep='')
