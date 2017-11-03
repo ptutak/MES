@@ -63,7 +63,7 @@ class GlobalData:
 if __name__=='__main__':
     with open('data.txt') as f:
         for line in f:
-            if f[0]=='#':
+            if line[0]=='#':
                 continue
             else:
                 inp=line.strip().split(',')
