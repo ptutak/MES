@@ -4,17 +4,26 @@ Created on Fri Nov  3 13:26:28 2017
 
 @author: Piotrek
 """
+import yaml
 
 
+def loadData(fileName):
+    data={}
+    with open(fileName) as file:
+        data=yaml.load(file)
+    return data
 
 class Node:
-    def __init__(self,x,y,t=0,edge=0):
+    def __init__(self,x,y,t=0,edge=False):
         self.x=x
         self.y=y
         self.t=t
         self.edge=edge
     def __repr__(self):
         return "({0},{1})".format(self.x,self.y)
+    def __str__(self):
+        return "({0},{1},t={2},edge={3})".format(self.x,self.y,self.t,self.edge)
+        
 
 class Element:
     def __init__(self,nodes,ids):
@@ -34,7 +43,10 @@ class Grid:
         nodes=[]
         for i in range(nB):
             for j in range(nH):
-                nodes.append(Node(x+db*i,y+dh*j,t))
+                if (i==0 or i==nB-1 or j==0 or j==nH-1):
+                    nodes.append(Node(x+db*i,y+dh*j,t,True))
+                else:
+                    nodes.append(Node(x+db*i,y+dh*j,t))
         self.nodes=nodes
         elements=[]
         for i in range(nB-1):
@@ -46,7 +58,7 @@ class Grid:
     def __call__(self,index):
         return self.elements[index]
         
-class GlobalData:
+class MesObject:
     def __init__(self,B,H,nB,nH):
         self.B=B
         self.H=H
@@ -61,18 +73,9 @@ class GlobalData:
 
 
 if __name__=='__main__':
-    with open('data.txt') as f:
-        for line in f:
-            if line[0]=='#':
-                continue
-            else:
-                inp=line.strip().split(',')
-                B=float(inp[0].strip())
-                H=float(inp[1].strip())
-                nB=int(inp[2].strip())
-                nH=int(inp[3].strip())
-                break
-    gD=GlobalData(B,H,nB,nH)
-    gD.generateGrid()
-    print(gD.grid[0],gD.grid[4],gD.grid[20],gD.grid[24])
-    print(gD.grid(0),gD.grid(3),gD.grid(12),gD.grid(15),sep='')
+    globalData=loadData('data.txt')
+    print(globalData)
+    mO=MesObject(globalData['B'],globalData['H'],globalData['nB'],globalData['nH'])
+    mO.generateGrid()
+    print(mO.grid[0],mO.grid[4],mO.grid[20],mO.grid[24])
+    print(mO.grid(0),mO.grid(3),mO.grid(12),mO.grid(15),sep='')

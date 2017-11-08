@@ -1,2 +1,5 @@
-#  B  ,   H   ,  nB  ,  nH
-1.0   ,  1.0  ,  5   ,   5
+#Dane globalne:
+B: 1.0
+H: 1.0
+nB: 5
+nH: 5
