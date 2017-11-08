@@ -24,12 +24,11 @@ class Node:
     def __str__(self):
         return "({0},{1},t={2},edge={3})".format(self.x,self.y,self.t,self.edge)
         
-
 class Element:
     def __init__(self,nodes,ids):
         self.nodes=nodes
         self.ids=ids
-        self.surface=[all([nodes[(i+3)%4].edge,nodes[(i+4)%4].edge] for i in range(4))]
+        self.surface=[all([nodes[(i+3)%4].edge,nodes[(i+4)%4].edge]) for i in range(4)]
     def __repr__(self):
         rep="{3} {2}\n{0} {1}\n{4!r}\n".format(*self.ids,self.surface)
         return rep
@@ -37,7 +36,6 @@ class Element:
         strg="{3} {2}\n{0} {1}\n{4!r}\n".format(*self.nodes,self.surface)
         return strg
 
-    
 class Grid:
     def __init__(self,nB,nH,db,dh,x=0,y=0,t=0):
         nodes=[]
@@ -77,5 +75,5 @@ if __name__=='__main__':
     print(globalData)
     mO=MesObject(globalData['B'],globalData['H'],globalData['nB'],globalData['nH'])
     mO.generateGrid()
-    print(mO.grid[0],mO.grid[4],mO.grid[20],mO.grid[24])
+    print(mO.grid[0],mO.grid[4],mO.grid[20],mO.grid[24],'\n')
     print(mO.grid(0),mO.grid(3),mO.grid(12),mO.grid(15),sep='')
