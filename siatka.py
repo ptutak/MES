@@ -7,11 +7,24 @@ Created on Fri Nov  3 13:26:28 2017
 import yaml
 
 
+
 def loadData(fileName):
     data={}
     with open(fileName) as file:
         data=yaml.load(file)
     return data
+
+class ShapeFunc:
+    def __init__(self,func,derivs,varNumber):
+        self.func=func
+        self.derivs=derivs
+        self.varNumber=varNumber
+    def __call__(self,*args):
+        if len(args)!=self.varNumber:
+            raise TypeError('Wrong number of variables')
+        return self.func(*args)
+    def __getitem__(self,index):
+        return self.derivs[index]
 
 class Node:
     def __init__(self,x,y,t=0,edge=False):
@@ -35,6 +48,10 @@ class Element:
     def __str__(self):
         strg="{3} {2}\n{0} {1}\n{4!r}\n".format(*self.nodes,self.surface)
         return strg
+    def __getitem__(self,index):
+        return self.nodes[index]
+    def __len__(self):
+        return len(self.nodes)
 
 class Grid:
     def __init__(self,nB,nH,db,dh,x=0,y=0,t=0):
@@ -70,6 +87,17 @@ class MesObject:
         print(self.grid)
 
 
+class Compute:
+    def __init__(self,shapeFuncs, varNumber):
+        self.shapeFuncs=shapeFuncs
+        self.varNumber=varNumber
+    def element(self,element,gaussQ, gaussW):
+                
+        pass
+    def nodes(self,nodes):
+        pass
+        
+
 if __name__=='__main__':
     globalData=loadData('data.txt')
     print(globalData)
@@ -77,3 +105,8 @@ if __name__=='__main__':
     mO.generateGrid()
     print(mO.grid[0],mO.grid[4],mO.grid[20],mO.grid[24],'\n')
     print(mO.grid(0),mO.grid(3),mO.grid(12),mO.grid(15),sep='')
+    
+    n1=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1-eta),{'xsi':lambda xsi,eta:-0.25*(1-eta),'eta':lambda xsi,eta:-0.25*(1-xsi)},2)
+    print(n1['xsi'](1.0,0.0))
+    
+    
