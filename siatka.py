@@ -5,7 +5,7 @@ Created on Fri Nov  3 13:26:28 2017
 @author: Piotrek
 """
 import yaml
-
+import numpy as np
 
 
 def loadData(fileName):
@@ -15,10 +15,11 @@ def loadData(fileName):
     return data
 
 class ShapeFunc:
-    def __init__(self,func,derivs,varNumber):
+    def __init__(self,func,derivs):
         self.func=func
         self.derivs=derivs
-        self.varNumber=varNumber
+        self.varNumber=len(derivs)
+        self.varNames=derivs.keys()
     def __call__(self,*args):
         if len(args)!=self.varNumber:
             raise TypeError('Wrong number of variables')
@@ -52,6 +53,17 @@ class Element:
         return self.nodes[index]
     def __len__(self):
         return len(self.nodes)
+    def getXs(self):
+        xs=[]
+        for n in self.nodes:
+            xs.append(n.x)
+        return np.array(xs)
+    def getYs(self):
+        ys=[]
+        for n in self.nodes:
+            ys.append(n.y)
+        return np.array(ys)
+
 
 class Grid:
     def __init__(self,nB,nH,db,dh,x=0,y=0,t=0):
@@ -88,12 +100,33 @@ class MesObject:
 
 
 class Compute:
-    def __init__(self,shapeFuncs, varNumber):
+    def __init__(self,shapeFuncs,varNames,gaussQ,gaussW):
         self.shapeFuncs=shapeFuncs
-        self.varNumber=varNumber
-    def element(self,element,gaussQ, gaussW):
+        self.varNames=varNames
+        self.gaussArgs=[((gaussQ[i],gaussQ[j]),gaussW[i]*gaussW[j]) for i in range(len(gaussQ)) for j in range(len(gaussQ))]     
+        valDerivShapeFuncGauss=dict()
+        zippedValsDSFG=dict()
+        for name in self.varNames:
+            valDerivShapeFuncGauss[name]=[list() for _ in range(len(shapeFuncs))]
+            for i in range(len(shapeFuncs)):
+                for arg in self.gaussArgs:
+                    valDerivShapeFuncGauss[name][i].append(self.shapeFuncs[i][name](*arg[0])*arg[1])
+            zippedValsDSFG[name]=list(zip(*valDerivShapeFuncGauss[name]))
+            for i in range(len(zippedValsDSFG[name])):
+                zippedValsDSFG[name][i]=np.array(zippedValsDSFG[name][i])
+        self.zippedValsDSFG=zippedValsDSFG    
+    def element(self,element):
+        x=dict()
+        y=dict()
+        for name in self.varNames:
+            x[name]=[]
+            y[name]=[]
+            for valDSFG in self.zippedValsDSFG[name]:
+                x[name].append(np.dot(valDSFG,element.getXs()))
+                y[name].append(np.dot(valDSFG,element.getYs()))
+        self.x=x
+        self.y=y                
                 
-        pass
     def nodes(self,nodes):
         pass
         
@@ -106,7 +139,18 @@ if __name__=='__main__':
     print(mO.grid[0],mO.grid[4],mO.grid[20],mO.grid[24],'\n')
     print(mO.grid(0),mO.grid(3),mO.grid(12),mO.grid(15),sep='')
     
-    n1=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1-eta),{'xsi':lambda xsi,eta:-0.25*(1-eta),'eta':lambda xsi,eta:-0.25*(1-xsi)},2)
+    n1=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1-eta),
+                 {'xsi':lambda xsi,eta:-0.25*(1-eta),'eta':lambda xsi,eta:-0.25*(1-xsi)})
+    n2=ShapeFunc(lambda xsi,eta:0.25*(1+xsi)*(1-eta),
+                 {'xsi':lambda xsi,eta:0.25*(1-eta),'eta':lambda xsi,eta:-0.25*(1+xsi)})
+    n3=ShapeFunc(lambda xsi,eta:0.25*(1+xsi)*(1+eta),
+                 {'xsi':lambda xsi,eta:0.25*(1+eta),'eta':lambda xsi,eta:0.25*(1+xsi)})
+    n4=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1+eta),
+                 {'xsi':lambda xsi,eta:-0.25*(1+eta),'eta':lambda xsi,eta:0.25*(1-xsi)})
+   
     print(n1['xsi'](1.0,0.0))
     
+    x=Compute([n1,n2,n3,n4],{'xsi','eta'},[1,2,3],[1,2,3])
+    print(x.gaussArgs)
+    print(x.zippedValsDSFG)
     

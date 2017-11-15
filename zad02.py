@@ -31,11 +31,9 @@ def calkaPodwojna(f,ax,bx,ay,by,n,m):
 
 def calkaGauss(f, kwadratury, wagi):
     calka=0.0
-    
     for i in range(len(kwadratury)):
         for j in range(len(kwadratury)):
-            calka+=f(kwadratury[i],kwadratury[j])*wagi[i]*wagi[j]
-            
+            calka+=f(kwadratury[i],kwadratury[j])*wagi[i]*wagi[j]   
     return calka
 
 
