@@ -6,7 +6,7 @@ Created on Fri Nov  3 13:26:28 2017
 """
 import yaml
 import numpy as np
-
+import numpy.linalg as lg
 
 def loadData(fileName):
     data={}
@@ -43,6 +43,11 @@ class Element:
         self.nodes=nodes
         self.ids=ids
         self.surface=[all([nodes[(i+3)%4].edge,nodes[(i+4)%4].edge]) for i in range(4)]
+        self.dx=dict()
+        self.dy=dict()
+        self.recipDetJac=[]
+        self.recipJacMat=[]
+        self.dShapeFuncs={'x':[],'y':[]}
     def __repr__(self):
         rep="{3} {2}\n{0} {1}\n{4!r}\n".format(*self.ids,self.surface)
         return rep
@@ -81,9 +86,11 @@ class Grid:
                 elements.append(Element([nodes[i*nH+j],nodes[(i+1)*nH+j],nodes[(i+1)*nH+j+1],nodes[i*nH+j+1]],[i*nH+j,(i+1)*nH+j,(i+1)*nH+j+1,i*nH+j+1]))
         self.elements=elements
     def __getitem__(self,index):
-        return self.nodes[index]
-    def __call__(self,index):
         return self.elements[index]
+    def __len__(self):
+        return len(self.elements)
+    def __call__(self,index):
+        return self.nodes[index]
         
 class MesObject:
     def __init__(self,B,H,nB,nH):
@@ -115,29 +122,36 @@ class Compute:
             for i in range(len(zippedValsDSFG[name])):
                 zippedValsDSFG[name][i]=np.array(zippedValsDSFG[name][i])
         self.zippedValsDSFG=zippedValsDSFG    
-    def element(self,element):
-        x=dict()
-        y=dict()
+    def compElement(self,element):
         for name in self.varNames:
-            x[name]=[]
-            y[name]=[]
+            element.dx[name]=[]
+            element.dy[name]=[]
             for valDSFG in self.zippedValsDSFG[name]:
-                x[name].append(np.dot(valDSFG,element.getXs()))
-                y[name].append(np.dot(valDSFG,element.getYs()))
-        self.x=x
-        self.y=y                
+                element.dx[name].append(np.dot(valDSFG,element.getXs()))
+                element.dy[name].append(np.dot(valDSFG,element.getYs()))
+        for name in self.varNames:
+            for i in range(len(self.gaussArgs)):
+                jacobi=np.array([[element.dx['xsi'][i],element.dy['xsi'][i]],[element.dx['eta'][i], element.dy['eta'][i]]])
+                recipJacobi=np.array([[jacobi[1,1],-jacobi[0,1]],[-jacobi[1,0],jacobi[0,0]]])
+                element.recipDetJac.append(1.0/lg.det(jacobi))
+                element.recipJacMat.append(recipJacobi)
                 
-    def nodes(self,nodes):
-        pass
-        
+        for i in range(len(self.gaussArgs)):
+            element.dShapeFuncs['x'].append([])
+            element.dShapeFuncs['y'].append([])
+            for j in range(len(self.shapeFuncs)):
+                res=element.recipDetJac[i]*np.dot(element.recipJacMat[i],np.array([self.zippedValsDSFG['xsi'][i][j],self.zippedValsDSFG['eta'][i][j]]))
+                element.dShapeFuncs['x'][i].append(res[0])
+                element.dShapeFuncs['y'][i].append(res[1])
+
 
 if __name__=='__main__':
     globalData=loadData('data.txt')
     print(globalData)
     mO=MesObject(globalData['B'],globalData['H'],globalData['nB'],globalData['nH'])
     mO.generateGrid()
-    print(mO.grid[0],mO.grid[4],mO.grid[20],mO.grid[24],'\n')
-    print(mO.grid(0),mO.grid(3),mO.grid(12),mO.grid(15),sep='')
+    print(mO.grid(0),mO.grid(4),mO.grid(20),mO.grid(24),'\n')
+    print(mO.grid[0],mO.grid[3],mO.grid[12],mO.grid[15],sep='')
     
     n1=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1-eta),
                  {'xsi':lambda xsi,eta:-0.25*(1-eta),'eta':lambda xsi,eta:-0.25*(1-xsi)})
@@ -150,7 +164,6 @@ if __name__=='__main__':
    
     print(n1['xsi'](1.0,0.0))
     
-    x=Compute([n1,n2,n3,n4],{'xsi','eta'},[1,2,3],[1,2,3])
-    print(x.gaussArgs)
-    print(x.zippedValsDSFG)
-    
+    x=Compute([n1,n2,n3,n4],{'xsi','eta'},[-np.sqrt(3)/3,np.sqrt(3)/3],[1.0,1.0])
+    x.compElement(mO.grid[0])
+    print(mO.grid[0].dShapeFuncs)
