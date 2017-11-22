@@ -15,17 +15,17 @@ def loadData(fileName):
     return data
 
 class ShapeFunc:
-    def __init__(self,func,derivs):
-        self.func=func
-        self.derivs=derivs
-        self.varNumber=len(derivs)
-        self.varNames=derivs.keys()
+    def __init__(self,f,dFd):
+        self.f=f
+        self.dFd=dFd
+        self.varNumber=len(dFd)
+        self.var=dFd.keys()
     def __call__(self,*args):
         if len(args)!=self.varNumber:
             raise TypeError('Wrong number of variables')
-        return self.func(*args)
+        return self.f(*args)
     def __getitem__(self,index):
-        return self.derivs[index]
+        return self.dFd[index]
 
 class Node:
     def __init__(self,x,y,t=0,edge=False):
@@ -43,11 +43,11 @@ class Element:
         self.nodes=nodes
         self.ids=ids
         self.surface=[all([nodes[(i+3)%4].edge,nodes[(i+4)%4].edge]) for i in range(4)]
-        self.dx=dict()
-        self.dy=dict()
-        self.recipDetJac=[]
-        self.recipJacMat=[]
-        self.dShapeFuncs={'x':[],'y':[]}
+        self.dXd=dict()
+        self.dYd=dict()
+        self.recipDetJ=[]
+        self.recipJ=[]
+        self.dNd={'x':[],'y':[]}
     def __repr__(self):
         rep="{3} {2}\n{0} {1}\n{4!r}\n".format(*self.ids,self.surface)
         return rep
@@ -107,42 +107,42 @@ class MesObject:
 
 
 class Compute:
-    def __init__(self,shapeFuncs,varNames,gaussQ,gaussW):
-        self.shapeFuncs=shapeFuncs
-        self.varNames=varNames
-        self.gaussArgs=[((gaussQ[i],gaussQ[j]),gaussW[i]*gaussW[j]) for i in range(len(gaussQ)) for j in range(len(gaussQ))]     
-        valDerivShapeFuncGauss=dict()
-        zippedValsDSFG=dict()
-        for name in self.varNames:
-            valDerivShapeFuncGauss[name]=[list() for _ in range(len(shapeFuncs))]
-            for i in range(len(shapeFuncs)):
-                for arg in self.gaussArgs:
-                    valDerivShapeFuncGauss[name][i].append(self.shapeFuncs[i][name](*arg[0])*arg[1])
-            zippedValsDSFG[name]=list(zip(*valDerivShapeFuncGauss[name]))
-            for i in range(len(zippedValsDSFG[name])):
-                zippedValsDSFG[name][i]=np.array(zippedValsDSFG[name][i])
-        self.zippedValsDSFG=zippedValsDSFG    
+    def __init__(self,N,var,gaussQ,gaussW):
+        self.N=N
+        self.var=var
+        self.points=[((gaussQ[i],gaussQ[j]),gaussW[i]*gaussW[j]) for i in range(len(gaussQ)) for j in range(len(gaussQ))]     
+        listdNd=dict()
+        dNd=dict()
+        for name in self.var:
+            listdNd[name]=[list() for _ in range(len(N))]
+            for i in range(len(N)):
+                for point in self.points:
+                    listdNd[name][i].append(self.N[i][name](*point[0])*point[1])
+            dNd[name]=list(zip(*listdNd[name]))
+            for i in range(len(dNd[name])):
+                dNd[name][i]=np.array(dNd[name][i])
+        self.dNd=dNd    
     def compElement(self,element):
-        for name in self.varNames:
-            element.dx[name]=[]
-            element.dy[name]=[]
-            for valDSFG in self.zippedValsDSFG[name]:
-                element.dx[name].append(np.dot(valDSFG,element.getXs()))
-                element.dy[name].append(np.dot(valDSFG,element.getYs()))
-        for name in self.varNames:
-            for i in range(len(self.gaussArgs)):
-                jacobi=np.array([[element.dx['xsi'][i],element.dy['xsi'][i]],[element.dx['eta'][i], element.dy['eta'][i]]])
+        for name in self.var:
+            element.dXd[name]=[]
+            element.dYd[name]=[]
+            for d in self.dNd[name]:
+                element.dXd[name].append(np.dot(d,element.getXs()))
+                element.dYd[name].append(np.dot(d,element.getYs()))
+        for name in self.var:
+            for i in range(len(self.points)):
+                jacobi=np.array([[element.dXd['xsi'][i],element.dYd['xsi'][i]],[element.dXd['eta'][i], element.dYd['eta'][i]]])
                 recipJacobi=np.array([[jacobi[1,1],-jacobi[0,1]],[-jacobi[1,0],jacobi[0,0]]])
-                element.recipDetJac.append(1.0/lg.det(jacobi))
-                element.recipJacMat.append(recipJacobi)
+                element.recipDetJ.append(1.0/lg.det(jacobi))
+                element.recipJ.append(recipJacobi)
                 
-        for i in range(len(self.gaussArgs)):
-            element.dShapeFuncs['x'].append([])
-            element.dShapeFuncs['y'].append([])
-            for j in range(len(self.shapeFuncs)):
-                res=element.recipDetJac[i]*np.dot(element.recipJacMat[i],np.array([self.zippedValsDSFG['xsi'][i][j],self.zippedValsDSFG['eta'][i][j]]))
-                element.dShapeFuncs['x'][i].append(res[0])
-                element.dShapeFuncs['y'][i].append(res[1])
+        for i in range(len(self.points)):
+            element.dNd['x'].append([])
+            element.dNd['y'].append([])
+            for j in range(len(self.N)):
+                res=element.recipDetJ[i]*np.dot(element.recipJ[i],np.array([self.dNd['xsi'][i][j],self.dNd['eta'][i][j]]))
+                element.dNd['x'][i].append(res[0])
+                element.dNd['y'][i].append(res[1])
 
 
 if __name__=='__main__':
@@ -166,4 +166,4 @@ if __name__=='__main__':
     
     x=Compute([n1,n2,n3,n4],{'xsi','eta'},[-np.sqrt(3)/3,np.sqrt(3)/3],[1.0,1.0])
     x.compElement(mO.grid[0])
-    print(mO.grid[0].dShapeFuncs)
+    print(mO.grid[0].dNd)
