@@ -27,6 +27,7 @@ class ShapeFunc:
     def __getitem__(self,index):
         return self.dFd[index]
 
+
 class Node:
     def __init__(self,x,y,t=0,edge=False):
         self.x=x
@@ -37,7 +38,7 @@ class Node:
         return "({0},{1})".format(self.x,self.y)
     def __str__(self):
         return "({0},{1},t={2},edge={3})".format(self.x,self.y,self.t,self.edge)
-        
+
 class Element:
     def __init__(self,nodes,ids):
         self.nodes=nodes
@@ -91,7 +92,7 @@ class Grid:
         return len(self.elements)
     def __call__(self,index):
         return self.nodes[index]
-        
+
 class MesObject:
     def __init__(self,B,H,nB,nH):
         self.B=B
@@ -110,7 +111,7 @@ class Compute:
     def __init__(self,N,var,gaussQ,gaussW):
         self.N=N
         self.var=var
-        self.points=[((gaussQ[i],gaussQ[j]),gaussW[i]*gaussW[j]) for i in range(len(gaussQ)) for j in range(len(gaussQ))]     
+        self.points=[((gaussQ[i],gaussQ[j]),gaussW[i]*gaussW[j]) for i in range(len(gaussQ)) for j in range(len(gaussQ))]
         listdNd=dict()
         dNd=dict()
         for name in self.var:
@@ -121,7 +122,7 @@ class Compute:
             dNd[name]=list(zip(*listdNd[name]))
             for i in range(len(dNd[name])):
                 dNd[name][i]=np.array(dNd[name][i])
-        self.dNd=dNd    
+        self.dNd=dNd
     def compElement(self,element):
         for name in self.var:
             element.dXd[name]=[]
@@ -135,7 +136,7 @@ class Compute:
                 recipJacobi=np.array([[jacobi[1,1],-jacobi[0,1]],[-jacobi[1,0],jacobi[0,0]]])
                 element.recipDetJ.append(1.0/lg.det(jacobi))
                 element.recipJ.append(recipJacobi)
-                
+
         for i in range(len(self.points)):
             element.dNd['x'].append([])
             element.dNd['y'].append([])
@@ -152,7 +153,7 @@ if __name__=='__main__':
     mO.generateGrid()
     print(mO.grid(0),mO.grid(4),mO.grid(20),mO.grid(24),'\n')
     print(mO.grid[0],mO.grid[3],mO.grid[12],mO.grid[15],sep='')
-    
+
     n1=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1-eta),
                  {'xsi':lambda xsi,eta:-0.25*(1-eta),'eta':lambda xsi,eta:-0.25*(1-xsi)})
     n2=ShapeFunc(lambda xsi,eta:0.25*(1+xsi)*(1-eta),
@@ -161,9 +162,9 @@ if __name__=='__main__':
                  {'xsi':lambda xsi,eta:0.25*(1+eta),'eta':lambda xsi,eta:0.25*(1+xsi)})
     n4=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1+eta),
                  {'xsi':lambda xsi,eta:-0.25*(1+eta),'eta':lambda xsi,eta:0.25*(1-xsi)})
-   
+
     print(n1['xsi'](1.0,0.0))
-    
+
     x=Compute([n1,n2,n3,n4],{'xsi','eta'},[-np.sqrt(3)/3,np.sqrt(3)/3],[1.0,1.0])
     x.compElement(mO.grid[0])
     print(mO.grid[0].dNd)
