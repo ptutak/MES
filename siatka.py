@@ -179,7 +179,7 @@ class Compute:
             for v in self.globVar:
                 H=np.add(np.matmul(element.dNd[v][i],element.dNd[v][i]),H)
             H=H*k*element.detJ[i]*self.points[i]['w']
-        if element.surface:
+        if any(element.surface):
             for i in range(self.lenGauss):
                 H+=alfa
 
@@ -191,7 +191,7 @@ if __name__=='__main__':
     mO=MesObject(globalData['B'],globalData['H'],globalData['nB'],globalData['nH'])
     mO.generateGrid()
     print(mO.grid(0),mO.grid(4),mO.grid(20),mO.grid(24),'\n')
-    print(repr(mO.grid[0]),mO.grid[3],mO.grid[12],mO.grid[15],sep='')
+    print(mO.grid[0],mO.grid[3],mO.grid[12],mO.grid[15],sep='')
     n1=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1-eta),
                  {'xsi':lambda xsi,eta:-0.25*(1-eta),
                   'eta':lambda xsi,eta:-0.25*(1-xsi)})
