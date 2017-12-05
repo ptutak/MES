@@ -44,15 +44,16 @@ class Element:
         self.nodes=nodes
         self.ids=ids
         self.surface=[all([nodes[(i+3)%4].edge,nodes[(i+4)%4].edge]) for i in range(4)]
+        self.surfaceLen=[((nodes[(i+3)%4].x - nodes[(i+4)%4].x)**2 + (nodes[(i+3)%4].y - nodes[(i+4)%4].y)**2)**0.5 for i in range(4)]
         self.dXd=dict()
         self.dYd=dict()
         self.detJ=[]
         self.recipDetJ=[]
         self.recipJ=[]
         self.dNd={'x':[],'y':[]}
-        self.H=None
-        self.P=None
-        self.C=None
+        self.H=[]
+        self.P=[]
+        self.C=[]
     def __repr__(self):
         rep="{3!r} {2!r}\n{0!r} {1!r}\n{4!r}\n".format(*self.ids,self.surface)
         return rep
@@ -120,7 +121,9 @@ class Compute:
         self.q=gaussQ
         self.w=gaussW
         self.lenGauss=len(self.q)
-        self.points=[dict([('q',(gaussQ[i],gaussQ[j])),('w',gaussW[i]*gaussW[j])]) for i in range(len(gaussQ)) for j in range(len(gaussQ))]
+        self.points=[dict([('q',(gaussQ[i],gaussQ[j])),('w',gaussW[i]*gaussW[j]),('N',np.array([N[0](gaussQ[i],gaussQ[j]),N[1](gaussQ[i],gaussQ[j]),N[2](gaussQ[i],gaussQ[j]),N[3](gaussQ[i],gaussQ[j])]))]) for i in range(len(gaussQ)) for j in range(len(gaussQ))]
+        for point in self.points:
+            point['N2']=np.matmul(np.transpose(np.array([point['N']])),np.array([point['N']]))
         surfaces=[[] for x in range(4)]
         for j in range(self.lenGauss):
             nSurf0=[]
@@ -128,15 +131,15 @@ class Compute:
             nSurf2=[]
             nSurf3=[]
             for n in self.N:
-                nSurf0.append(n(-1.0,-self.q[j]))
-                nSurf1.append(n(self.q[j],-1.0))
-                nSurf2.append(n(1.0,self.q[j]))
-                nSurf3.append(n(-self.q[j],1))
+                nSurf0.append((n(-1.0,self.q[j]),self.w[j]))
+                nSurf1.append((n(self.q[j],-1.0),self.w[j]))
+                nSurf2.append((n(1.0,self.q[j]),self.w[j]))
+                nSurf3.append((n(self.q[j],1.0),self.w[j]))
             surfaces[0].append(np.array(nSurf0))
             surfaces[1].append(np.array(nSurf1))
             surfaces[2].append(np.array(nSurf2))
             surfaces[3].append(np.array(nSurf3))
-        self.surfaces=surfaces
+        self.surface=surfaces
         self.lenPoints=len(self.points)
         listdNd=dict()
         dNd=dict()
@@ -173,17 +176,23 @@ class Compute:
                 res=element.recipDetJ[i]*np.dot(element.recipJ[i],np.array([self.dNd['xsi'][i][j],self.dNd['eta'][i][j]]))
                 element.dNd['x'][i].append(res[0])
                 element.dNd['y'][i].append(res[1])
-    def compFunctional(self,element,k,alfa,c,ro):
-        H=0
+    def compFunctional(self,element,k,alfa,c,ro,tInf):
         for i in range(self.lenPoints):
+            H=0
             for v in self.globVar:
-                H=np.add(np.matmul(element.dNd[v][i],element.dNd[v][i]),H)
+                H=np.add(np.matmul(np.transpose(np.array([element.dNd[v][i]])),np.array([element.dNd[v][i]]),H))
             H=H*k*element.detJ[i]*self.points[i]['w']
-        if any(element.surface):
-            for i in range(self.lenGauss):
-                H+=alfa
-
-
+            if any(element.surface):
+                P=0
+                for i in range(element.surface):
+                    if element.surface[i]:
+                        for vecN in self.surface[i]:
+                            H+= alfa*np.matmul(np.transpose(np.array([vecN[0]])),np.array([vecN[0]]))*vecN[1]*element.surfaceLen[i]*0.5
+                            P+=-alfa* vecN[0]*tInf*vecN[1]*element.surfaceLen[i]*0.5
+            C=c*ro*self.points['N2']*element.detJ*self.points['w']
+            element.H.append(H)
+            element.P.append(P)
+            element.C.append(C)
 
 if __name__=='__main__':
     globalData=loadData('data.txt')
@@ -208,4 +217,4 @@ if __name__=='__main__':
     x=Compute([n1,n2,n3,n4],dict([('x','xsi'),('y','eta')]),[-0.7745966692414834,0.0,0.7745966692414834],[0.5555555555555556,0.8888888888888888,0.5555555555555556])
     x.compElement(mO.grid[3])
     print(mO.grid[3].dNd, mO.grid[3].dYd)
-    print(x.surfaces)
+    print(x.surface)
