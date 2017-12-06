@@ -6,7 +6,7 @@ Created on Fri Nov  3 13:26:28 2017
 """
 import yaml
 import numpy as np
-import numpy.linalg as lg
+import scipy.linalg as lg
 
 def loadData(fileName):
     data={}
@@ -29,15 +29,15 @@ class ShapeFunc:
 
 
 class Node:
-    def __init__(self,X,Y,t=0,edge=False):
+    def __init__(self,X,Y,tau=0,edge=False):
         self.X=X
         self.Y=Y
-        self.t=t
+        self.tau=tau
         self.edge=edge
     def __repr__(self):
         return "({0},{1})".format(self.X,self.Y)
     def __str__(self):
-        return "({0},{1},t={2},edge={3})".format(self.X,self.Y,self.t,self.edge)
+        return "({0},{1},tau={2},edge={3})".format(self.X,self.Y,self.tau,self.edge)
 
 class Element:
     def __init__(self,nodes,ids):
@@ -56,14 +56,14 @@ class Element:
         self.C=None
         x=[]
         y=[]
-        t=[]
+        tau=[]
         for n in self.nodes:
             x.append(n.X)
             y.append(n.Y)
-            t.append(n.t)
+            tau.append(n.tau)
         self.X=np.array(x)
         self.Y=np.array(y)
-        self.t=np.array(t)
+        self.tau=np.array(tau)
 
     def __repr__(self):
         rep="{3!r} {2!r}\n{0!r} {1!r}\n{4!r}\n".format(*self.ids,self.surface)
@@ -76,22 +76,22 @@ class Element:
             return self.X
         elif index=='Y':
             return self.Y
-        elif index=='t':
-            return self.t
+        elif index=='tau':
+            return self.tau
         return self.nodes[index]
     def __len__(self):
         return len(self.nodes)
 
 
 class Grid:
-    def __init__(self,nB,nH,db,dh,x=0,y=0,t=0):
+    def __init__(self,nB,nH,db,dh,x=0,y=0,tau=0):
         nodes=[]
         for i in range(nB):
             for j in range(nH):
                 if (i==0 or i==nB-1 or j==0 or j==nH-1):
-                    nodes.append(Node(x+db*i,y+dh*j,t,True))
+                    nodes.append(Node(x+db*i,y+dh*j,tau,True))
                 else:
-                    nodes.append(Node(x+db*i,y+dh*j,t))
+                    nodes.append(Node(x+db*i,y+dh*j,tau))
         self.nodes=nodes
         elements=[]
         for i in range(nB-1):
