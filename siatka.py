@@ -29,15 +29,15 @@ class ShapeFunc:
 
 
 class Node:
-    def __init__(self,x,y,t=0,edge=False):
-        self.x=x
-        self.y=y
+    def __init__(self,X,Y,t=0,edge=False):
+        self.X=X
+        self.Y=Y
         self.t=t
         self.edge=edge
     def __repr__(self):
-        return "({0},{1})".format(self.x,self.y)
+        return "({0},{1})".format(self.X,self.Y)
     def __str__(self):
-        return "({0},{1},t={2},edge={3})".format(self.x,self.y,self.t,self.edge)
+        return "({0},{1},t={2},edge={3})".format(self.X,self.Y,self.t,self.edge)
 
 class Element:
     def __init__(self,nodes,ids):
@@ -49,11 +49,21 @@ class Element:
             self.surface[i]['edge']=all([nodes[(i+3)%4].edge,nodes[(i+4)%4].edge])
             if self.surface[i]['edge']:
                 self.edge=True
-            self.surface[i]['len']=((nodes[(i+3)%4].x - nodes[(i+4)%4].x)**2 + (nodes[(i+3)%4].y - nodes[(i+4)%4].y)**2)**0.5
+            self.surface[i]['len']=((nodes[(i+3)%4].X - nodes[(i+4)%4].X)**2 + (nodes[(i+3)%4].Y - nodes[(i+4)%4].Y)**2)**0.5
         self.points=[]
         self.H=None
         self.P=None
         self.C=None
+        x=[]
+        y=[]
+        t=[]
+        for n in self.nodes:
+            x.append(n.X)
+            y.append(n.Y)
+            t.append(n.t)
+        self.X=np.array(x)
+        self.Y=np.array(y)
+        self.t=np.array(t)
 
     def __repr__(self):
         rep="{3!r} {2!r}\n{0!r} {1!r}\n{4!r}\n".format(*self.ids,self.surface)
@@ -61,22 +71,13 @@ class Element:
     def __str__(self):
         strg="{3!s} {2!s}\n{0!s} {1!s}\n{4!r}\n".format(*self.nodes,self.surface)
         return strg
-    def getXs(self):
-        xs=[]
-        for n in self.nodes:
-            xs.append(n.x)
-        return np.array(xs)
-    def getYs(self):
-        ys=[]
-        for n in self.nodes:
-            ys.append(n.y)
-        return np.array(ys)
-
     def __getitem__(self,index):
         if index=='X':
-            return self.getXs()
+            return self.X
         elif index=='Y':
-            return self.getYs()
+            return self.Y
+        elif index=='t':
+            return self.t
         return self.nodes[index]
     def __len__(self):
         return len(self.nodes)
