@@ -51,6 +51,9 @@ class Element:
                 self.edge=True
             self.surface[i]['len']=((nodes[(i+3)%4].x - nodes[(i+4)%4].x)**2 + (nodes[(i+3)%4].y - nodes[(i+4)%4].y)**2)**0.5
         self.points=[]
+        self.H=None
+        self.P=None
+        self.C=None
 
     def __repr__(self):
         rep="{3!r} {2!r}\n{0!r} {1!r}\n{4!r}\n".format(*self.ids,self.surface)
@@ -130,7 +133,6 @@ class Compute:
             point['N2']=np.matmul(np.transpose(np.array([point['N']])),np.array([point['N']]))
         for point in self.points:
             for v in self.locVar:
-                point['dNd'+v]=[]
                 listdNd=[]
                 for n in self.N:
                     listdNd.append(n[v](*point['q'])*point['w'])
@@ -183,22 +185,34 @@ class Compute:
             element.points[i]['dNdY']=np.array(dNdY)
 
     def compFunctionalPoints(self,element,k,alfa,c,ro,tInf):
+        elemH=0
+        elemC=0
+        elemP=0
         for i in range(self.lenPoints):
             H=0
             for v in self.globVar:
-                H=np.add(np.matmul(np.transpose(element.points[i]['dNd'+v]),element.points[i]['dNd'+v]),H)
+                H=np.add(np.matmul(np.transpose([element.points[i]['dNd'+v]]),[element.points[i]['dNd'+v]]),H)
             H=H*k*element.points[i]['detJ']*self.points[i]['w']
-            if element.edge:
-                P=0
-                for i in range(element.surface):
-                    if element.surface[i]['edge']:
-                        for point in self.surface[i]:
-                            H+= alfa*np.matmul(np.transpose(point['N']),point['N'])*point['w']*element.surface[i]['len']*0.5
-                            P+=-alfa* point['N']*tInf*point['w']*element.surface[i]['len']*0.5
-            C=c*ro*self.points['N2']*element.points['detJ']*self.points['w']
+            C=c*ro*self.points[i]['N2']*element.points[i]['detJ']*self.points[i]['w']
             element.points[i]['H']=np.array(H)
-            element.points[i]['P']=np.array(P)
             element.points[i]['C']=np.array(C)
+            elemH+=H
+            elemC+=C
+        if element.edge:
+            for j in range(len(element.surface)):
+                if element.surface[j]['edge']:
+                    H=0
+                    P=0
+                    for point in self.surface[j]:
+                        H+= alfa*np.matmul(np.transpose([point['N']]),[point['N']])*point['w']*element.surface[j]['len']*0.5
+                        P+=-alfa* point['N']*tInf*point['w']*element.surface[j]['len']*0.5
+                    element.surface[j]['H']=np.array(H)
+                    element.surface[j]['P']=np.array(P)
+                    elemH+=H
+                    elemP+=P
+        element.H=elemH
+        element.P=elemP
+        element.C=elemC
 
 
 if __name__=='__main__':
@@ -224,5 +238,8 @@ if __name__=='__main__':
     x=Compute([n1,n2,n3,n4],dict([('X','Xsi'),('Y','Eta')]),[-0.7745966692414834,0.0,0.7745966692414834],[0.5555555555555556,0.8888888888888888,0.5555555555555556])
     print('points')
     x.compElementPoints(mO.grid[3])
+    x.compFunctionalPoints(mO.grid[3],1,1,1,1,1)
     print(*mO.grid[3].points,sep='\n')
+    print("H, P, C")
+    print(mO.grid[3].H, mO.grid[3].P, mO.grid[3].C,sep='\n\n')
     
