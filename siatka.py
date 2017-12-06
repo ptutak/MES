@@ -192,7 +192,7 @@ class Compute:
         for i in range(self.lenPoints):
             H=0
             for v in self.globVar:
-                H=np.add(np.matmul(np.transpose([element.points[i]['dNd'+v]]),[element.points[i]['dNd'+v]]),H)
+                H=np.add(np.matmul(np.transpose(np.array([element.points[i]['dNd'+v]])),np.array([element.points[i]['dNd'+v]])),H)
             H=H*k*element.points[i]['detJ']*self.points[i]['w']
             C=c*ro*self.points[i]['N2']*element.points[i]['detJ']*self.points[i]['w']
             element.points[i]['H']=np.array(H)
@@ -205,7 +205,7 @@ class Compute:
                     H=0
                     P=0
                     for point in self.surface[j]:
-                        H+= alfa*np.matmul(np.transpose([point['N']]),[point['N']])*point['w']*element.surface[j]['len']*0.5
+                        H+= alfa*np.matmul(np.transpose(np.array([point['N']])),np.array([point['N']]))*point['w']*element.surface[j]['len']*0.5
                         P+=-alfa* point['N']*tInf*point['w']*element.surface[j]['len']*0.5
                     element.surface[j]['H']=np.array(H)
                     element.surface[j]['P']=np.array(P)
