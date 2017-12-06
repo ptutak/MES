@@ -43,27 +43,33 @@ class Element:
     def __init__(self,nodes,ids):
         self.nodes=nodes
         self.ids=ids
-        self.surface=[all([nodes[(i+3)%4].edge,nodes[(i+4)%4].edge]) for i in range(4)]
+        self.edge=False
+        self.surface=[dict() for i in range(4)]
+        for i in range(4):
+            self.surface[i]['edge']=all([nodes[(i+3)%4].edge,nodes[(i+4)%4].edge])
+            if self.surface[i]['edge']:
+                self.edge=True
+            self.surface[i]['len']=((nodes[(i+3)%4].x - nodes[(i+4)%4].x)**2 + (nodes[(i+3)%4].y - nodes[(i+4)%4].y)**2)**0.5
+        self.points=[]
+        """
+        self.surfaceEdge=[all([nodes[(i+3)%4].edge,nodes[(i+4)%4].edge]) for i in range(4)]
         self.surfaceLen=[((nodes[(i+3)%4].x - nodes[(i+4)%4].x)**2 + (nodes[(i+3)%4].y - nodes[(i+4)%4].y)**2)**0.5 for i in range(4)]
         self.dXd=dict()
         self.dYd=dict()
         self.detJ=[]
         self.recipDetJ=[]
         self.recipJ=[]
-        self.dNd={'x':[],'y':[]}
+        self.dNd={'X':[],'Y':[]}
         self.H=[]
         self.P=[]
         self.C=[]
+        """
     def __repr__(self):
         rep="{3!r} {2!r}\n{0!r} {1!r}\n{4!r}\n".format(*self.ids,self.surface)
         return rep
     def __str__(self):
         strg="{3!s} {2!s}\n{0!s} {1!s}\n{4!r}\n".format(*self.nodes,self.surface)
         return strg
-    def __getitem__(self,index):
-        return self.nodes[index]
-    def __len__(self):
-        return len(self.nodes)
     def getXs(self):
         xs=[]
         for n in self.nodes:
@@ -74,6 +80,15 @@ class Element:
         for n in self.nodes:
             ys.append(n.y)
         return np.array(ys)
+
+    def __getitem__(self,index):
+        if index=='X':
+            return self.getXs()
+        elif index=='Y':
+            return self.getYs()
+        return self.nodes[index]
+    def __len__(self):
+        return len(self.nodes)
 
 
 class Grid:
@@ -112,6 +127,7 @@ class MesObject:
         print(self.grid)
 
 
+
 class Compute:
     def __init__(self,N,variables,gaussQ,gaussW):
         self.N=N
@@ -121,26 +137,39 @@ class Compute:
         self.q=gaussQ
         self.w=gaussW
         self.lenGauss=len(self.q)
-        self.points=[dict([('q',(gaussQ[i],gaussQ[j])),('w',gaussW[i]*gaussW[j]),('N',np.array([N[0](gaussQ[i],gaussQ[j]),N[1](gaussQ[i],gaussQ[j]),N[2](gaussQ[i],gaussQ[j]),N[3](gaussQ[i],gaussQ[j])]))]) for i in range(len(gaussQ)) for j in range(len(gaussQ))]
+        self.points=[dict([('q',(gaussQ[i],gaussQ[j])),('w',gaussW[i]*gaussW[j]),('N',np.array([n(gaussQ[i],gaussQ[j]) for n in self.N]))]) for i in range(len(gaussQ)) for j in range(len(gaussQ))]
         for point in self.points:
             point['N2']=np.matmul(np.transpose(np.array([point['N']])),np.array([point['N']]))
-        surfaces=[[] for x in range(4)]
+        for point in self.points:
+            for v in self.locVar:
+                point['dNd'+v]=[]
+                listdNd=[]
+                for n in self.N:
+                    listdNd.append(n[v](*point['q'])*point['w'])
+                point['dNd'+v]=np.array(listdNd)
+        self.lenPoints=len(self.points)
+
+        surfaces=[[dict() for y in range(self.lenGauss)] for x in range(4)]
         for j in range(self.lenGauss):
             nSurf0=[]
             nSurf1=[]
             nSurf2=[]
             nSurf3=[]
             for n in self.N:
-                nSurf0.append((n(-1.0,self.q[j]),self.w[j]))
-                nSurf1.append((n(self.q[j],-1.0),self.w[j]))
-                nSurf2.append((n(1.0,self.q[j]),self.w[j]))
-                nSurf3.append((n(self.q[j],1.0),self.w[j]))
-            surfaces[0].append(np.array(nSurf0))
-            surfaces[1].append(np.array(nSurf1))
-            surfaces[2].append(np.array(nSurf2))
-            surfaces[3].append(np.array(nSurf3))
+                nSurf0.append(n(-1.0,self.q[j]))
+                nSurf1.append(n(self.q[j],-1.0))
+                nSurf2.append(n(1.0,self.q[j]))
+                nSurf3.append(n(self.q[j],1.0))
+            surfaces[0][j]['N']=np.array(nSurf0)
+            surfaces[1][j]['N']=np.array(nSurf1)
+            surfaces[2][j]['N']=np.array(nSurf2)
+            surfaces[3][j]['N']=np.array(nSurf3)
+            for i in range(4):
+                surfaces[i][j]['w']=self.w[j]
         self.surface=surfaces
-        self.lenPoints=len(self.points)
+
+
+        """
         listdNd=dict()
         dNd=dict()
         for v in self.locVar:
@@ -152,48 +181,93 @@ class Compute:
             for i in range(len(dNd[v])):
                 dNd[v][i]=np.array(dNd[v][i])
         self.dNd=dNd
+        """
+    def compElementPoints(self,element):
+        for i in range(self.lenPoints):
+            element.points.append(dict())
+            for vG in self.globVar:
+                for vL in self.locVar:
+                    element.points[i]['d'+vG+'d'+vL]=np.dot(self.points[i]['dNd'+vL],element[vG])
+                    
+            J=np.array([
+                    [element.points[i]['dXdXsi'], element.points[i]['dYdXsi']],
+                    [element.points[i]['dXdEta'],element.points[i]['dYdEta']]
+                    ])
+            element.points[i]['J^-1']=np.array([
+                    [J[1,1],-J[0,1]],
+                    [-J[1,0],J[0,0]]
+                    ])
+            detJ=lg.det(J)
+            element.points[i]['detJ']=detJ
+            element.points[i]['1/detJ']=1.0/detJ
+            dNdX=[]
+            dNdY=[]
+            for j in range(len(self.N)):
+                res=element.points[i]['1/detJ']*np.dot(element.points[i]['J^-1'],np.array([self.points[i]['dNdXsi'][j],self.points[i]['dNdEta'][j]]))
+                dNdX.append(res[0])
+                dNdY.append(res[1])
+            element.points[i]['dNdX']=np.array(dNdX)
+            element.points[i]['dNdY']=np.array(dNdY)
+
+    def compFunctionalPoints(self,element,k,alfa,c,ro,tInf):
+        for i in range(self.lenPoints):
+            H=0
+            for v in self.globVar:
+                H=np.add(np.matmul(np.transpose(element.points[i]['dNd'+v]),element.points[i]['dNd'+v]),H)
+            H=H*k*element.points[i]['detJ']*self.points[i]['w']
+            if element.edge:
+                P=0
+                for i in range(element.surface):
+                    if element.surface[i]['edge']:
+                        for point in self.surface[i]:
+                            H+= alfa*np.matmul(np.transpose(point['N']),point['N'])*point['w']*element.surface[i]['len']*0.5
+                            P+=-alfa* point['N']*tInf*point['w']*element.surface[i]['len']*0.5
+            C=c*ro*self.points['N2']*element.points['detJ']*self.points['w']
+            element.points[i]['H']=np.array(H)
+            element.points[i]['P']=np.array(P)
+            element.points[i]['C']=np.array(C)
+    """
     def compElement(self,element):
         for v in self.locVar:
             element.dXd[v]=[]
             element.dYd[v]=[]
             for d in self.dNd[v]:
                 element.dXd[v].append(np.dot(d,element.getXs()))
-                print(element.dXd[v])
                 element.dYd[v].append(np.dot(d,element.getYs()))
-        for v in self.locVar:
-            for i in range(self.lenPoints):
-                jacobi=np.array([[element.dXd['xsi'][i],element.dYd['xsi'][i]],[element.dXd['eta'][i], element.dYd['eta'][i]]])
-                recipJacobi=np.array([[jacobi[1,1],-jacobi[0,1]],[-jacobi[1,0],jacobi[0,0]]])
-                detJ=lg.det(jacobi)
-                element.detJ.append(detJ)
-                element.recipDetJ.append(1.0/detJ)
-                element.recipJ.append(recipJacobi)
 
         for i in range(self.lenPoints):
-            element.dNd['x'].append([])
-            element.dNd['y'].append([])
+            jacobi=np.array([[element.dXd['Xsi'][i],element.dYd['Xsi'][i]],[element.dXd['Eta'][i], element.dYd['Eta'][i]]])
+            recipJacobi=np.array([[jacobi[1,1],-jacobi[0,1]],[-jacobi[1,0],jacobi[0,0]]])
+            detJ=lg.det(jacobi)
+            element.detJ.append(detJ)
+            element.recipDetJ.append(1.0/detJ)
+            element.recipJ.append(recipJacobi)
+
+        for i in range(self.lenPoints):
+            element.dNd['X'].append([])
+            element.dNd['Y'].append([])
             for j in range(len(self.N)):
-                res=element.recipDetJ[i]*np.dot(element.recipJ[i],np.array([self.dNd['xsi'][i][j],self.dNd['eta'][i][j]]))
-                element.dNd['x'][i].append(res[0])
-                element.dNd['y'][i].append(res[1])
+                res=element.recipDetJ[i]*np.dot(element.recipJ[i],np.array([self.dNd['Xsi'][i][j],self.dNd['Eta'][i][j]]))
+                element.dNd['X'][i].append(res[0])
+                element.dNd['Y'][i].append(res[1])
     def compFunctional(self,element,k,alfa,c,ro,tInf):
         for i in range(self.lenPoints):
             H=0
             for v in self.globVar:
                 H=np.add(np.matmul(np.transpose(np.array([element.dNd[v][i]])),np.array([element.dNd[v][i]]),H))
             H=H*k*element.detJ[i]*self.points[i]['w']
-            if any(element.surface):
+            if element.edge:
                 P=0
                 for i in range(element.surface):
-                    if element.surface[i]:
-                        for vecN in self.surface[i]:
-                            H+= alfa*np.matmul(np.transpose(np.array([vecN[0]])),np.array([vecN[0]]))*vecN[1]*element.surfaceLen[i]*0.5
-                            P+=-alfa* vecN[0]*tInf*vecN[1]*element.surfaceLen[i]*0.5
-            C=c*ro*self.points['N2']*element.detJ*self.points['w']
+                    if element.surface[i]['edge']:
+                        for point in self.surface[i]:
+                            H+= alfa*np.matmul(np.transpose(np.array([point['N']])),np.array([point['N']]))*point['w']*element.surface[i]['len']*0.5
+                            P+=-alfa* point['N']*tInf*point['w']*element.surface[i]['len']*0.5
+            C=c*ro*self.points[i]['N2']*element.detJ*self.points[i]['w']
             element.H.append(H)
             element.P.append(P)
             element.C.append(C)
-
+    """
 if __name__=='__main__':
     globalData=loadData('data.txt')
     print(globalData)
@@ -202,19 +276,20 @@ if __name__=='__main__':
     print(mO.grid(0),mO.grid(4),mO.grid(20),mO.grid(24),'\n')
     print(mO.grid[0],mO.grid[3],mO.grid[12],mO.grid[15],sep='')
     n1=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1-eta),
-                 {'xsi':lambda xsi,eta:-0.25*(1-eta),
-                  'eta':lambda xsi,eta:-0.25*(1-xsi)})
+                 {'Xsi':lambda xsi,eta:-0.25*(1-eta),
+                  'Eta':lambda xsi,eta:-0.25*(1-xsi)})
     n2=ShapeFunc(lambda xsi,eta:0.25*(1+xsi)*(1-eta),
-                 {'xsi':lambda xsi,eta:0.25*(1-eta),
-                  'eta':lambda xsi,eta:-0.25*(1+xsi)})
+                 {'Xsi':lambda xsi,eta:0.25*(1-eta),
+                  'Eta':lambda xsi,eta:-0.25*(1+xsi)})
     n3=ShapeFunc(lambda xsi,eta:0.25*(1+xsi)*(1+eta),
-                 {'xsi':lambda xsi,eta:0.25*(1+eta),
-                  'eta':lambda xsi,eta:0.25*(1+xsi)})
+                 {'Xsi':lambda xsi,eta:0.25*(1+eta),
+                  'Eta':lambda xsi,eta:0.25*(1+xsi)})
     n4=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1+eta),
-                 {'xsi':lambda xsi,eta:-0.25*(1+eta),
-                  'eta':lambda xsi,eta:0.25*(1-xsi)})
+                 {'Xsi':lambda xsi,eta:-0.25*(1+eta),
+                  'Eta':lambda xsi,eta:0.25*(1-xsi)})
 
-    x=Compute([n1,n2,n3,n4],dict([('x','xsi'),('y','eta')]),[-0.7745966692414834,0.0,0.7745966692414834],[0.5555555555555556,0.8888888888888888,0.5555555555555556])
-    x.compElement(mO.grid[3])
-    print(mO.grid[3].dNd, mO.grid[3].dYd)
-    print(x.surface)
+    x=Compute([n1,n2,n3,n4],dict([('X','Xsi'),('Y','Eta')]),[-0.7745966692414834,0.0,0.7745966692414834],[0.5555555555555556,0.8888888888888888,0.5555555555555556])
+    print('points')
+    x.compElementPoints(mO.grid[3])
+    print(*mO.grid[3].points,sep='\n')
+    
