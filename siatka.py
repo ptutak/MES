@@ -29,15 +29,16 @@ class ShapeFunc:
 
 
 class Node:
-    def __init__(self,X,Y,tau=0,edge=False):
+    def __init__(self,X,Y,Tau=0,edge=False,t=None):
         self.X=X
         self.Y=Y
-        self.tau=tau
+        self.Tau=Tau
         self.edge=edge
+        self.t=t
     def __repr__(self):
         return "({0},{1})".format(self.X,self.Y)
     def __str__(self):
-        return "({0},{1},tau={2},edge={3})".format(self.X,self.Y,self.tau,self.edge)
+        return "({0},{1},Tau={2},edge={3})".format(self.X,self.Y,self.Tau,self.edge)
 
 class Element:
     def __init__(self,nodes,ids):
@@ -56,15 +57,17 @@ class Element:
         self.C=None
         x=[]
         y=[]
-        tau=[]
+        Tau=[]
+        t=[]
         for n in self.nodes:
             x.append(n.X)
             y.append(n.Y)
-            tau.append(n.tau)
+            Tau.append(n.Tau)
+            t.append(n.t)
         self.X=np.array(x)
         self.Y=np.array(y)
-        self.tau=np.array(tau)
-
+        self.Tau=np.array(Tau)
+        self.t=np.transpose(np.array([t]))
     def __repr__(self):
         rep="{3!r} {2!r}\n{0!r} {1!r}\n{4!r}\n".format(*self.ids,self.surface)
         return rep
@@ -72,26 +75,24 @@ class Element:
         strg="{3!s} {2!s}\n{0!s} {1!s}\n{4!r}\n".format(*self.nodes,self.surface)
         return strg
     def __getitem__(self,index):
-        if index=='X':
-            return self.X
-        elif index=='Y':
-            return self.Y
-        elif index=='tau':
-            return self.tau
+        if type(index)==str:
+            return self.__dict__[index]
         return self.nodes[index]
     def __len__(self):
         return len(self.nodes)
+    def updateNodes(self):
+        pass
 
 
 class Grid:
-    def __init__(self,nB,nH,db,dh,x=0,y=0,tau=0):
+    def __init__(self,nB,nH,db,dh,x=0,y=0,Tau=0):
         nodes=[]
         for i in range(nB):
             for j in range(nH):
                 if (i==0 or i==nB-1 or j==0 or j==nH-1):
-                    nodes.append(Node(x+db*i,y+dh*j,tau,True))
+                    nodes.append(Node(x+db*i,y+dh*j,Tau,True))
                 else:
-                    nodes.append(Node(x+db*i,y+dh*j,tau))
+                    nodes.append(Node(x+db*i,y+dh*j,Tau))
         self.nodes=nodes
         elements=[]
         for i in range(nB-1):
@@ -131,7 +132,7 @@ class Compute:
         self.lenGauss=len(self.q)
         self.points=[dict([('q',(gaussQ[i],gaussQ[j])),('w',gaussW[i]*gaussW[j]),('N',np.array([n(gaussQ[i],gaussQ[j]) for n in self.N]))]) for i in range(len(gaussQ)) for j in range(len(gaussQ))]
         for point in self.points:
-            point['N2']=np.matmul(np.transpose(np.array([point['N']])),np.array([point['N']]))
+            point['N^2']=np.matmul(np.transpose(np.array([point['N']])),np.array([point['N']]))
         for point in self.points:
             for v in self.locVar:
                 listdNd=[]
@@ -157,6 +158,7 @@ class Compute:
             surfaces[3][j]['N']=np.array(nSurf3)
             for i in range(4):
                 surfaces[i][j]['w']=self.w[j]
+                surfaces[i][j]['N^2']=np.matmul(np.transpose(np.array([surfaces[i][j]['N']])),np.array([surfaces[i][j]['N']]))
         self.surface=surfaces
 
     def compElementPoints(self,element):
@@ -194,7 +196,7 @@ class Compute:
             for v in self.globVar:
                 H=np.add(np.matmul(np.transpose(np.array([element.points[i]['dNd'+v]])),np.array([element.points[i]['dNd'+v]])),H)
             H=H*k*element.points[i]['detJ']*self.points[i]['w']
-            C=c*ro*self.points[i]['N2']*element.points[i]['detJ']*self.points[i]['w']
+            C=c*ro*self.points[i]['N^2']*element.points[i]['detJ']*self.points[i]['w']
             element.points[i]['H']=np.array(H)
             element.points[i]['C']=np.array(C)
             elemH+=H
@@ -205,7 +207,7 @@ class Compute:
                     H=0
                     P=0
                     for point in self.surface[j]:
-                        H+= alfa*np.matmul(np.transpose(np.array([point['N']])),np.array([point['N']]))*point['w']*element.surface[j]['len']*0.5
+                        H+= alfa*point['N^2']*point['w']*element.surface[j]['len']*0.5
                         P+=-alfa* point['N']*tInf*point['w']*element.surface[j]['len']*0.5
                     element.surface[j]['H']=np.array(H)
                     element.surface[j]['P']=np.array(P)
@@ -214,6 +216,16 @@ class Compute:
         element.H=elemH
         element.P=elemP
         element.C=elemC
+    def compStationary(self,element):
+        pass
+    def compTimePoints(self,element,dTau):
+        H=element.H
+        C=element.C/dTau
+        A=H+C
+        t=element.t
+        P=element.P
+        B=np.matmul(C,t)-P
+        return lg.solve(A,B)
 
 
 if __name__=='__main__':
