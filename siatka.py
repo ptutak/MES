@@ -116,6 +116,17 @@ class Grid:
         return len(self.elements)
     def __call__(self,index):
         return self.nodes[index]
+    def printNodeAttrs(self,attr):
+        res=""
+        for i in range(self.nH):
+            for j in range(self.nB):
+                res+="{0!s:^5}".format(self.nodes[i*self.nB+j][attr])+"\t"
+            res+="\n\n"
+        return res
+    def updateNodes(self,values,attr):
+        values=iter(values)
+        for n in self.nodes:
+            n[attr]=next(values)
 
 class MesObject:
     def __init__(self,B,H,nB,nH):
@@ -123,10 +134,8 @@ class MesObject:
         self.H=H
         self.nH=nH
         self.nB=nB
-    def generateGrid(self):
         self.grid=Grid(self.nB,self.nH,self.B/(self.nB-1),self.H/(self.nH-1))
-    def printGrid(self):
-        print(self.grid)
+
 
 
 
@@ -237,7 +246,7 @@ class Compute:
 #            Ct0=element.Ct0/dTau
             H=element.H
             P=element.P
-            #B=np.matmul(C,np.transpose(np.array([element['t']])))-np.array([P])
+#            B=np.matmul(C,np.transpose(np.array([element['t']])))-np.array([P])
             for i in range(self.lenN):
                 PP[element.ids[i]]+=P[i]
                 for j in range(self.lenN):
@@ -246,22 +255,18 @@ class Compute:
         A=np.array(HH)+np.array(CC)/dTau
         B=np.matmul(np.array(CC),np.transpose(np.array([grid['t']])))/dTau-np.transpose(np.array([PP]))
         return lg.solve(A,B)
-    def compGrid(self, grid, k, alfa, c, ro, tInf,dTau):
+    def compGridTemp(self, grid, k, alfa, c, ro, tInf,dTau):
         for element in grid:
             self.compElementPoints(element)
             self.compFunctionalMatrices(element,k,alfa,c,ro,tInf)
         t1=self.compTempPoints(grid,dTau)
-        i=0
-        for node in grid.nodes:
-            node.t=t1[i][0]
-            i+=1
+        return np.reshape(t1,len(t1))
 
 
 if __name__=='__main__':
     globalData=loadData('data.txt')
     print(globalData)
     mO=MesObject(globalData['B'],globalData['H'],globalData['nB'],globalData['nH'])
-    mO.generateGrid()
     print(mO.grid(0),mO.grid(4),mO.grid(20),mO.grid(24),'\n')
     print(mO.grid[0],mO.grid[3],mO.grid[12],mO.grid[15],sep='')
     n1=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1-eta),
@@ -278,14 +283,10 @@ if __name__=='__main__':
                   'Eta':lambda xsi,eta:0.25*(1-xsi)})
 
     x=Compute([n1,n2,n3,n4],dict([('X','Xsi'),('Y','Eta')]),[-0.7745966692414834,0.0,0.7745966692414834],[0.5555555555555556,0.8888888888888888,0.5555555555555556])
-    for i in range(mO.nH):
-        for j in range(mO.nB):
-            print(mO.grid.nodes[i*mO.nB+j].t,' ',end='')
-        print()
+    print(mO.grid.printNodeAttrs('t'))
+    
     for k in range(20):
-        x.compGrid(mO.grid,1,1,1,1000,100,1)
-        for i in range(mO.nH):
-            for j in range(mO.nB):
-                print(mO.grid.nodes[i*mO.nB+j].t,' ',end='')
-            print()
-        print()
+        t1=x.compGridTemp(mO.grid,1,1,1,1000,100,1)
+        mO.grid.updateNodes(t1,'t')
+        mO.grid.updateNodes([1.0*k for x in range(mO.grid.nn)],'Tau')
+        print(mO.grid.printNodeAttrs('t'))
