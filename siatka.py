@@ -7,6 +7,7 @@ Created on Fri Nov  3 13:26:28 2017
 import yaml
 import numpy as np
 import scipy.linalg as lg
+from collections import abc
 
 def loadData(fileName):
     data={}
@@ -29,7 +30,7 @@ class ShapeFunc:
 
 
 class Node:
-    def __init__(self,X,Y,Tau=0,edge=False,t=None):
+    def __init__(self,X,Y,t=0,edge=False,Tau=None):
         self.X=X
         self.Y=Y
         self.Tau=Tau
@@ -39,6 +40,10 @@ class Node:
         return "({0},{1})".format(self.X,self.Y)
     def __str__(self):
         return "({0},{1},Tau={2},edge={3})".format(self.X,self.Y,self.Tau,self.edge)
+    def __setitem__(self,index,value):
+        self.__dict__[index]=value
+    def __getitem__(self,index):
+        return self.__dict__[index]
 
 class Element:
     def __init__(self,nodes,ids):
@@ -55,19 +60,20 @@ class Element:
         self.H=None
         self.P=None
         self.C=None
-        x=[]
-        y=[]
+#        self.Ct0=None
+        X=[]
+        Y=[]
         Tau=[]
         t=[]
         for n in self.nodes:
-            x.append(n.X)
-            y.append(n.Y)
+            X.append(n.X)
+            Y.append(n.Y)
             Tau.append(n.Tau)
             t.append(n.t)
-        self.X=np.array(x)
-        self.Y=np.array(y)
+        self.X=np.array(X)
+        self.Y=np.array(Y)
         self.Tau=np.array(Tau)
-        self.t=np.transpose(np.array([t]))
+        self.t=np.array(t)
     def __repr__(self):
         rep="{3!r} {2!r}\n{0!r} {1!r}\n{4!r}\n".format(*self.ids,self.surface)
         return rep
@@ -76,23 +82,49 @@ class Element:
         return strg
     def __getitem__(self,index):
         if type(index)==str:
+            tmp=[]
+            for n in self.nodes:
+                tmp.append(n.__dict__[index])
+            self.__dict__[index]=np.array(tmp)
             return self.__dict__[index]
         return self.nodes[index]
+    def __setitem__(self,index,value):
+        if type(index)==str:
+            self.__dict__[index]=value
+#            i=0
+#            for n in self.nodes:
+#                n[index]=self.__dict__[index][i]
+#                i+=1
+        else:
+            self.nodes[index]=value
     def __len__(self):
         return len(self.nodes)
-    def updateNodes(self):
-        pass
+#    def updateNodes(self,index):
+#        i=0
+#        for n in self.nodes:
+#            n[index]=self.__dict__[index][i]
+#            i+=1
 
 
 class Grid:
-    def __init__(self,nB,nH,db,dh,x=0,y=0,Tau=0):
+    def __init__(self,nB,nH,db,dh,x=0,y=0,t=0):
+        self.nB=nB
+        self.nH=nH
+        self.db=db
+        self.dh=dh
+        self.nn=nB*nH
+        self.ne=(nH-1)*(nB-1)
         nodes=[]
+        if isinstance(t,abc.Sequence):
+            t=iter(t)
+        else:
+            t=iter([t for x in range(self.nn)])
         for i in range(nB):
             for j in range(nH):
                 if (i==0 or i==nB-1 or j==0 or j==nH-1):
-                    nodes.append(Node(x+db*i,y+dh*j,Tau,True))
+                    nodes.append(Node(x+db*i,y+dh*j,next(t),True))
                 else:
-                    nodes.append(Node(x+db*i,y+dh*j,Tau))
+                    nodes.append(Node(x+db*i,y+dh*j,next(t)))
         self.nodes=nodes
         elements=[]
         for i in range(nB-1):
@@ -100,6 +132,11 @@ class Grid:
                 elements.append(Element([nodes[i*nH+j],nodes[(i+1)*nH+j],nodes[(i+1)*nH+j+1],nodes[i*nH+j+1]],[i*nH+j,(i+1)*nH+j,(i+1)*nH+j+1,i*nH+j+1]))
         self.elements=elements
     def __getitem__(self,index):
+        if type(index)==str:
+            tmp=[]
+            for n in self.nodes:
+                tmp.append(n.__dict__[index])
+            return np.array(tmp)
         return self.elements[index]
     def __len__(self):
         return len(self.elements)
@@ -112,8 +149,6 @@ class MesObject:
         self.H=H
         self.nH=nH
         self.nB=nB
-        self.ne=(nH-1)*(nB-1)
-        self.nn=nH*nB
     def generateGrid(self):
         self.grid=Grid(self.nB,self.nH,self.B/(self.nB-1),self.H/(self.nH-1))
     def printGrid(self):
@@ -124,6 +159,7 @@ class MesObject:
 class Compute:
     def __init__(self,N,variables,gaussQ,gaussW):
         self.N=N
+        self.lenN=len(N)
         self.variables=variables
         self.globVar=set(variables.keys())
         self.locVar=set(variables.values())
@@ -140,7 +176,6 @@ class Compute:
                     listdNd.append(n[v](*point['q'])*point['w'])
                 point['dNd'+v]=np.array(listdNd)
         self.lenPoints=len(self.points)
-
         surfaces=[[dict() for y in range(self.lenGauss)] for x in range(4)]
         for j in range(self.lenGauss):
             nSurf0=[]
@@ -160,7 +195,6 @@ class Compute:
                 surfaces[i][j]['w']=self.w[j]
                 surfaces[i][j]['N^2']=np.matmul(np.transpose(np.array([surfaces[i][j]['N']])),np.array([surfaces[i][j]['N']]))
         self.surface=surfaces
-
     def compElementPoints(self,element):
         for i in range(self.lenPoints):
             element.points.append(dict())
@@ -180,27 +214,30 @@ class Compute:
             element.points[i]['1/detJ']=1.0/detJ
             dNdX=[]
             dNdY=[]
-            for j in range(len(self.N)):
+            for j in range(self.lenN):
                 res=element.points[i]['1/detJ']*np.dot(element.points[i]['J^-1'],np.array([self.points[i]['dNdXsi'][j],self.points[i]['dNdEta'][j]]))
                 dNdX.append(res[0])
                 dNdY.append(res[1])
             element.points[i]['dNdX']=np.array(dNdX)
             element.points[i]['dNdY']=np.array(dNdY)
-
     def compFunctionalPoints(self,element,k,alfa,c,ro,tInf):
         elemH=0
         elemC=0
-        elemP=0
+#        elemCt0=0
+        elemP=np.array([0.0 for x in range(self.lenN)])
         for i in range(self.lenPoints):
             H=0
             for v in self.globVar:
                 H=np.add(np.matmul(np.transpose(np.array([element.points[i]['dNd'+v]])),np.array([element.points[i]['dNd'+v]])),H)
             H=H*k*element.points[i]['detJ']*self.points[i]['w']
             C=c*ro*self.points[i]['N^2']*element.points[i]['detJ']*self.points[i]['w']
+#            Ct0=c*np.dot(element['t'],self.point[i]['N'])
             element.points[i]['H']=np.array(H)
             element.points[i]['C']=np.array(C)
+#            element.points[i]['Ct0']=np.array(Ct0)
             elemH+=H
             elemC+=C
+#            elemCt0+=Ct0
         if element.edge:
             for j in range(len(element.surface)):
                 if element.surface[j]['edge']:
@@ -213,19 +250,41 @@ class Compute:
                     element.surface[j]['P']=np.array(P)
                     elemH+=H
                     elemP+=P
-        element.H=elemH
-        element.P=elemP
-        element.C=elemC
-    def compStationary(self,element):
-        pass
-    def compTimePoints(self,element,dTau):
-        H=element.H
-        C=element.C/dTau
-        A=H+C
-        t=element.t
-        P=element.P
-        B=np.matmul(C,t)-P
-        return lg.solve(A,B)
+        element.H=np.array(elemH)
+        element.P=np.array(elemP)
+        element.C=np.array(elemC)
+#        element.Ct0=np.array(elemCt0)
+    def compTempPoints(self,grid,dTau):
+        HH=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
+        CC=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
+        PP=[0 for x in range(grid.nn)]
+        #AA=[[0 for y in range(grid.nB)] for x in range(grid.nH)]
+        for element in grid:
+            C=element.C
+#            Ct0=element.Ct0/dTau
+            H=element.H
+            #A=H+C
+            P=element.P
+            #B=np.matmul(C,np.transpose(np.array([element['t']])))-np.array([P])
+            for i in range(self.lenN):
+                PP[element.ids[i]]+=P[i]
+                for j in range(self.lenN):
+                    HH[element.ids[i]][element.ids[j]]+=H[i][j]
+                    CC[element.ids[i]][element.ids[j]]+=C[i][j]
+        A=np.array(HH)+np.array(CC)/dTau
+        B=np.matmul(np.array(CC),np.transpose(np.array([grid['t']])))/dTau-np.transpose(np.array([PP]))
+        t1=lg.solve(A,B)
+        #for node in grid.nodes:
+        return t1
+    def compGrid(self, grid, k, alfa, c, ro, tInf,dTau):
+        for element in grid:
+            self.compElementPoints(element)
+            self.compFunctionalPoints(element,k,alfa,c,ro,tInf)
+        t1=self.compTempPoints(grid,dTau)
+        i=0
+        for node in grid.nodes:
+            node.t=t1[i][0]
+            i+=1
 
 
 if __name__=='__main__':
@@ -249,10 +308,14 @@ if __name__=='__main__':
                   'Eta':lambda xsi,eta:0.25*(1-xsi)})
 
     x=Compute([n1,n2,n3,n4],dict([('X','Xsi'),('Y','Eta')]),[-0.7745966692414834,0.0,0.7745966692414834],[0.5555555555555556,0.8888888888888888,0.5555555555555556])
-    print('points')
-    x.compElementPoints(mO.grid[3])
-    x.compFunctionalPoints(mO.grid[3],1,1,1,1,1)
-    print(*mO.grid[3].points,sep='\n')
-    print("H, P, C")
-    print(mO.grid[3].H, mO.grid[3].P, mO.grid[3].C,sep='\n\n')
-    
+    for i in range(mO.nH):
+        for j in range(mO.nB):
+            print(mO.grid.nodes[i*mO.nB+j].t,' ',end='')
+        print()
+    for k in range(20):
+        x.compGrid(mO.grid,1,1,1,1000,100,1)
+        for i in range(mO.nH):
+            for j in range(mO.nB):
+                print(mO.grid.nodes[i*mO.nB+j].t,' ',end='')
+            print()
+        print()
