@@ -61,19 +61,6 @@ class Element:
         self.P=None
         self.C=None
 #        self.Ct0=None
-        X=[]
-        Y=[]
-        Tau=[]
-        t=[]
-        for n in self.nodes:
-            X.append(n.X)
-            Y.append(n.Y)
-            Tau.append(n.Tau)
-            t.append(n.t)
-        self.X=np.array(X)
-        self.Y=np.array(Y)
-        self.Tau=np.array(Tau)
-        self.t=np.array(t)
     def __repr__(self):
         rep="{3!r} {2!r}\n{0!r} {1!r}\n{4!r}\n".format(*self.ids,self.surface)
         return rep
@@ -85,25 +72,12 @@ class Element:
             tmp=[]
             for n in self.nodes:
                 tmp.append(n.__dict__[index])
-            self.__dict__[index]=np.array(tmp)
-            return self.__dict__[index]
+            return np.array(tmp)
         return self.nodes[index]
     def __setitem__(self,index,value):
-        if type(index)==str:
-            self.__dict__[index]=value
-#            i=0
-#            for n in self.nodes:
-#                n[index]=self.__dict__[index][i]
-#                i+=1
-        else:
-            self.nodes[index]=value
+        self.nodes[index]=value
     def __len__(self):
         return len(self.nodes)
-#    def updateNodes(self,index):
-#        i=0
-#        for n in self.nodes:
-#            n[index]=self.__dict__[index][i]
-#            i+=1
 
 
 class Grid:
@@ -220,7 +194,7 @@ class Compute:
                 dNdY.append(res[1])
             element.points[i]['dNdX']=np.array(dNdX)
             element.points[i]['dNdY']=np.array(dNdY)
-    def compFunctionalPoints(self,element,k,alfa,c,ro,tInf):
+    def compFunctionalMatrices(self,element,k,alfa,c,ro,tInf):
         elemH=0
         elemC=0
 #        elemCt0=0
@@ -258,12 +232,10 @@ class Compute:
         HH=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
         CC=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
         PP=[0 for x in range(grid.nn)]
-        #AA=[[0 for y in range(grid.nB)] for x in range(grid.nH)]
         for element in grid:
             C=element.C
 #            Ct0=element.Ct0/dTau
             H=element.H
-            #A=H+C
             P=element.P
             #B=np.matmul(C,np.transpose(np.array([element['t']])))-np.array([P])
             for i in range(self.lenN):
@@ -273,13 +245,11 @@ class Compute:
                     CC[element.ids[i]][element.ids[j]]+=C[i][j]
         A=np.array(HH)+np.array(CC)/dTau
         B=np.matmul(np.array(CC),np.transpose(np.array([grid['t']])))/dTau-np.transpose(np.array([PP]))
-        t1=lg.solve(A,B)
-        #for node in grid.nodes:
-        return t1
+        return lg.solve(A,B)
     def compGrid(self, grid, k, alfa, c, ro, tInf,dTau):
         for element in grid:
             self.compElementPoints(element)
-            self.compFunctionalPoints(element,k,alfa,c,ro,tInf)
+            self.compFunctionalMatrices(element,k,alfa,c,ro,tInf)
         t1=self.compTempPoints(grid,dTau)
         i=0
         for node in grid.nodes:
