@@ -229,8 +229,10 @@ class Compute:
                     H=0
                     P=0
                     for point in self.surface[j]:
-                        H+= alfa*point['N^2']*point['w']*element.surface[j]['len']*0.5
-                        P+=-alfa* point['N']*tInf*point['w']*element.surface[j]['len']*0.5
+                        H+= point['N^2']*point['w']*element.surface[j]['len']
+                        P+= point['N']*point['w']*element.surface[j]['len']
+                    H=H*alfa*0.5
+                    P=P*-alfa*tInf*0.5
                     element.surface[j]['H']=np.array(H)
                     element.surface[j]['P']=np.array(P)
                     elemH+=H
@@ -266,6 +268,8 @@ class Compute:
             Ct0=element.Ct0
             H=element.H
             P=element.P
+            
+            print(H+C/dTau)
             for i in range(self.lenN):
                 PP[element.ids[i]]+=P[i]
                 for j in range(self.lenN):
