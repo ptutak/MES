@@ -8,24 +8,31 @@ import yaml
 import numpy as np
 import scipy.linalg as lg
 from collections import abc
+import time
 
 def loadData(fileName):
-    data={}
+    data = {}
     with open(fileName) as file:
-        data=yaml.load(file)
+        data = yaml.load(file)
+    for x in data:
+        if isinstance(data[x],str):
+            data[x]=eval(data[x])
     return data
 
+
 class ShapeFunc:
-    def __init__(self,f,dFd):
-        self.f=f
-        self.dFd=dFd
-        self.varNumber=len(dFd)
-        self.vars=dFd.keys()
-    def __call__(self,*args):
-        if len(args)!=self.varNumber:
+    def __init__(self, f, dFd):
+        self.f = f
+        self.dFd = dFd
+        self.varNumber = len(dFd)
+        self.vars = dFd.keys()
+
+    def __call__(self, *args):
+        if len(args) != self.varNumber:
             raise TypeError('Wrong number of variables')
         return self.f(*args)
-    def __getitem__(self,index):
+
+    def __getitem__(self, index):
         return self.dFd[index]
 
 
@@ -45,6 +52,7 @@ class Node:
     def __getitem__(self,index):
         return self.__dict__[index]
 
+
 class Element:
     def __init__(self,nodes,ids):
         self.nodes=nodes
@@ -60,7 +68,7 @@ class Element:
         self.H=None
         self.P=None
         self.C=None
-#        self.Ct0=None
+        self.Ct0=None
     def __repr__(self):
         rep="{3!r} {2!r}\n{0!r} {1!r}\n{4!r}\n".format(*self.ids,self.surface)
         return rep
@@ -81,24 +89,26 @@ class Element:
 
 
 class Grid:
-    def __init__(self,nB,nH,db,dh,x=0,y=0,t=0):
+    def __init__(self,B,H,nB,nH,t0=0,x=0,y=0):
         self.nB=nB
         self.nH=nH
-        self.db=db
-        self.dh=dh
+        self.B=B
+        self.H=H
+        self.db=self.B/(self.nB-1)
+        self.dh=self.H/(self.nH-1)
         self.nn=nB*nH
         self.ne=(nH-1)*(nB-1)
         nodes=[]
-        if isinstance(t,abc.Sequence):
-            t=iter(t)
+        if isinstance(t0,abc.Sequence):
+            t0=iter(t0)
         else:
-            t=iter([t for x in range(self.nn)])
+            t0=iter([t0 for x in range(self.nn)])
         for i in range(nB):
             for j in range(nH):
                 if (i==0 or i==nB-1 or j==0 or j==nH-1):
-                    nodes.append(Node(x+db*i,y+dh*j,next(t),True))
+                    nodes.append(Node(x+self.db*i,y+self.dh*j,next(t0),True))
                 else:
-                    nodes.append(Node(x+db*i,y+dh*j,next(t)))
+                    nodes.append(Node(x+self.db*i,y+self.dh*j,next(t0)))
         self.nodes=nodes
         elements=[]
         for i in range(nB-1):
@@ -120,24 +130,13 @@ class Grid:
         res=""
         for i in range(self.nH):
             for j in range(self.nB):
-                res+="{0!s:^5}".format(self.nodes[i*self.nB+j][attr])+"\t"
+                res+="{0!r:^5}\t".format(self.nodes[i*self.nB+j][attr])
             res+="\n\n"
         return res
     def updateNodes(self,values,attr):
         values=iter(values)
         for n in self.nodes:
             n[attr]=next(values)
-
-class MesObject:
-    def __init__(self,B,H,nB,nH):
-        self.B=B
-        self.H=H
-        self.nH=nH
-        self.nB=nB
-        self.grid=Grid(self.nB,self.nH,self.B/(self.nB-1),self.H/(self.nH-1))
-
-
-
 
 class Compute:
     def __init__(self,N,variables,gaussQ,gaussW):
@@ -184,14 +183,17 @@ class Compute:
             for vG in self.globVar:
                 for vL in self.locVar:
                     element.points[i]['d'+vG+'d'+vL]=np.dot(self.points[i]['dNd'+vL],element[vG])
+
             J=np.array([
                     [element.points[i]['dXdXsi'],element.points[i]['dYdXsi']],
                     [element.points[i]['dXdEta'],element.points[i]['dYdEta']]
                     ])
+
             element.points[i]['J^-1']=np.array([
                     [J[1,1],-J[0,1]],
                     [-J[1,0],J[0,0]]
                     ])
+
             detJ=lg.det(J)
             element.points[i]['detJ']=detJ
             element.points[i]['1/detJ']=1.0/detJ
@@ -206,7 +208,7 @@ class Compute:
     def compFunctionalMatrices(self,element,k,alfa,c,ro,tInf):
         elemH=0
         elemC=0
-#        elemCt0=0
+        elemCt0=0
         elemP=np.array([0.0 for x in range(self.lenN)])
         for i in range(self.lenPoints):
             H=0
@@ -214,13 +216,13 @@ class Compute:
                 H=np.add(np.matmul(np.transpose(np.array([element.points[i]['dNd'+v]])),np.array([element.points[i]['dNd'+v]])),H)
             H=H*k*element.points[i]['detJ']*self.points[i]['w']
             C=c*ro*self.points[i]['N^2']*element.points[i]['detJ']*self.points[i]['w']
-#            Ct0=c*np.dot(element['t'],self.point[i]['N'])
+            Ct0=c*ro*self.points[i]['N^2']*element.points[i]['detJ']*self.points[i]['w']*np.dot(element['t'],self.points[i]['N'])
             element.points[i]['H']=np.array(H)
             element.points[i]['C']=np.array(C)
-#            element.points[i]['Ct0']=np.array(Ct0)
+            element.points[i]['Ct0']=np.array(Ct0)
             elemH+=H
             elemC+=C
-#            elemCt0+=Ct0
+            elemCt0+=Ct0
         if element.edge:
             for j in range(len(element.surface)):
                 if element.surface[j]['edge']:
@@ -236,17 +238,15 @@ class Compute:
         element.H=np.array(elemH)
         element.P=np.array(elemP)
         element.C=np.array(elemC)
-#        element.Ct0=np.array(elemCt0)
+        element.Ct0=np.array(elemCt0)
     def compTempPoints(self,grid,dTau):
         HH=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
         CC=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
         PP=[0 for x in range(grid.nn)]
         for element in grid:
             C=element.C
-#            Ct0=element.Ct0/dTau
             H=element.H
             P=element.P
-#            B=np.matmul(C,np.transpose(np.array([element['t']])))-np.array([P])
             for i in range(self.lenN):
                 PP[element.ids[i]]+=P[i]
                 for j in range(self.lenN):
@@ -255,20 +255,48 @@ class Compute:
         A=np.array(HH)+np.array(CC)/dTau
         B=np.matmul(np.array(CC),np.transpose(np.array([grid['t']])))/dTau-np.transpose(np.array([PP]))
         return lg.solve(A,B)
+    
+    def compTempPointsIntra(self,grid,dTau):
+        HH=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
+        CC=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
+        CCt0=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
+        PP=[0 for x in range(grid.nn)]
+        for element in grid:
+            C=element.C
+            Ct0=element.Ct0
+            H=element.H
+            P=element.P
+            for i in range(self.lenN):
+                PP[element.ids[i]]+=P[i]
+                for j in range(self.lenN):
+                    HH[element.ids[i]][element.ids[j]]+=H[i][j]
+                    CC[element.ids[i]][element.ids[j]]+=C[i][j]
+                    CCt0[element.ids[i]][element.ids[j]]+=Ct0[i][j]
+        CCt0s=[]
+        for i in range(len(CCt0)):
+            CCt0s.append(sum(CCt0[i]))
+
+        A=np.array(HH)+np.array(CC)/dTau
+        B=np.array(CCt0s)/dTau-np.array(PP)
+        return lg.solve(A,B)
+    
     def compGridTemp(self, grid, k, alfa, c, ro, tInf,dTau):
         for element in grid:
             self.compElementPoints(element)
             self.compFunctionalMatrices(element,k,alfa,c,ro,tInf)
+#        start=time.clock()
         t1=self.compTempPoints(grid,dTau)
-        return np.reshape(t1,len(t1))
+#        print('t1 time:',time.clock()-start)
+#        start=time.clock()
+        t2=self.compTempPointsIntra(grid,dTau)
+#        print('t2 time:',time.clock()-start)
+        return (np.reshape(t1,len(t1)),np.reshape(t2,len(t2)))
 
 
 if __name__=='__main__':
     globalData=loadData('data.txt')
     print(globalData)
-    mO=MesObject(globalData['B'],globalData['H'],globalData['nB'],globalData['nH'])
-    print(mO.grid(0),mO.grid(4),mO.grid(20),mO.grid(24),'\n')
-    print(mO.grid[0],mO.grid[3],mO.grid[12],mO.grid[15],sep='')
+    g=Grid(globalData['B'],globalData['H'],globalData['nB'],globalData['nH'],globalData['t0'])
     n1=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1-eta),
                  {'Xsi':lambda xsi,eta:-0.25*(1-eta),
                   'Eta':lambda xsi,eta:-0.25*(1-xsi)})
@@ -283,10 +311,19 @@ if __name__=='__main__':
                   'Eta':lambda xsi,eta:0.25*(1-xsi)})
 
     x=Compute([n1,n2,n3,n4],dict([('X','Xsi'),('Y','Eta')]),[-0.7745966692414834,0.0,0.7745966692414834],[0.5555555555555556,0.8888888888888888,0.5555555555555556])
-    print(mO.grid.printNodeAttrs('t'))
-    
-    for k in range(20):
-        t1=x.compGridTemp(mO.grid,1,1,1,1000,100,1)
-        mO.grid.updateNodes(t1,'t')
-        mO.grid.updateNodes([1.0*k for x in range(mO.grid.nn)],'Tau')
-        print(mO.grid.printNodeAttrs('t'))
+#    print(g.printNodeAttrs('t'))
+    tau=0.0
+    if tau<globalData['tau']:
+        t1,t2=x.compGridTemp(g,k=globalData['k'],alfa=globalData['alfa'],c=globalData['c'],ro=globalData['ro'],tInf=globalData['tInf'],dTau=globalData['dTau'])
+        print('t1=',end=' ')
+        for x in t1:
+            print("{:.15f}".format(x),end=' ')
+        print('\nt2=',end=' ')
+        for x in t2:
+            print("{:.15f}".format(x),end=' ')
+        print()
+#        print(t1,t2,sep='\n')
+        g.updateNodes(t1,'t')
+#        tau+=globalData['dTau']
+#        g.updateNodes([tau for x in range(g.nn)],'Tau')
+        print(g.printNodeAttrs('t'))
