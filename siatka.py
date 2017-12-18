@@ -22,7 +22,7 @@ def loadData(fileName):
 def printSeq(seq,prec):
     res=""
     for x in seq:
-        res+=("{0: ^"+str(prec+2)+"."+str(prec)+"}\t").format(x)
+        res+=("{0: ^"+str(prec+3)+"."+str(prec)+"f}\t").format(float(x))
     return res
 
 class ShapeFunc:
@@ -153,6 +153,7 @@ class Compute:
         self.w=gaussW
         self.lenGauss=len(self.q)
         self.points=[dict([('q',(gaussQ[i],gaussQ[j])),('w',gaussW[i]*gaussW[j]),('N',np.array([n(gaussQ[i],gaussQ[j]) for n in self.N]))]) for i in range(len(gaussQ)) for j in range(len(gaussQ))]
+        print(self.points)
         for point in self.points:
             point['N^2']=np.matmul(np.transpose(np.array([point['N']])),np.array([point['N']]))
         for point in self.points:
@@ -280,6 +281,9 @@ class Compute:
                     CCt0[element.ids[i]][element.ids[j]]+=Ct0[i][j]
         CCt0s=np.sum(CCt0,axis=0)
         A=np.array(HH)+np.array(CC)/dTau
+        for x in A:
+            print(printSeq(x,3))
+        print()
         B=CCt0s/dTau-np.array(PP)
         return lg.solve(A,B)
     
@@ -287,9 +291,9 @@ class Compute:
         for element in grid:
             self.compElementPoints(element)
             self.compFunctionalMatrices(element,k,alfa,c,ro,tInf)
-#        t1=self.compTempPoints(grid,dTau)
-        t1=self.compTempPointsIntra(grid,dTau)
-        return (np.reshape(t1,len(t1)))#,np.reshape(t2,len(t2)))
+        t1=self.compTempPoints(grid,dTau)
+        t2=self.compTempPointsIntra(grid,dTau)
+        return (np.reshape(t1,len(t1)),np.reshape(t2,len(t2)))
 
 
 if __name__=='__main__':
@@ -309,15 +313,15 @@ if __name__=='__main__':
                  {'Xsi':lambda xsi,eta:-0.25*(1+eta),
                   'Eta':lambda xsi,eta:0.25*(1-xsi)})
 
-#    x=Compute([n1,n2,n3,n4],dict([('X','Xsi'),('Y','Eta')]),[-0.7745966692414834,0.0,0.7745966692414834],[0.5555555555555556,0.8888888888888888,0.5555555555555556])
-    x=Compute([n1,n2,n3,n4],dict([('X','Xsi'),('Y','Eta')]),[-1.0/np.sqrt(3),1.0/np.sqrt(3)],[1.0,1.0])
+    x=Compute([n1,n2,n3,n4],dict([('X','Xsi'),('Y','Eta')]),[-0.7745966692414834,0.0,0.7745966692414834],[0.5555555555555556,0.8888888888888888,0.5555555555555556])
+#    x=Compute([n1,n2,n3,n4],dict([('X','Xsi'),('Y','Eta')]),[-1.0/np.sqrt(3),1.0/np.sqrt(3)],[1.0,1.0])
 
     tau=0.0
     start=time.clock()
     while tau<globalData['tau']:
-        t1=x.compGridTemp(g,k=globalData['k'],alfa=globalData['alfa'],c=globalData['c'],ro=globalData['ro'],tInf=globalData['tInf'],dTau=globalData['dTau'])
-#        print(t1,t2,sep='\n')
-        g.updateNodes(t1,'t')
+        t1,t2=x.compGridTemp(g,k=globalData['k'],alfa=globalData['alfa'],c=globalData['c'],ro=globalData['ro'],tInf=globalData['tInf'],dTau=globalData['dTau'])
+#        print(printSeq(t1,16),printSeq(t2,16),sep='\n')
+        g.updateNodes(t2,'t')
         tau+=globalData['dTau']
-    print(g.printNodeAttrs('t'))
+        print(g.printNodeAttrs('t'))
     print("time: ",time.clock()-start)

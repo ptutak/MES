@@ -1,11 +1,11 @@
 #Dane globalne:
 B: 0.1
 H: 0.1
-nB: 5
-nH: 5
-t0: 100
+nB: 4
+nH: 4
+t0: 100.0
 tau: 100.0
-dTau: 1.0
+dTau: 10.0
 tInf: 1200.0
 alfa: 300.0
 c: 700.0
