@@ -42,16 +42,15 @@ class ShapeFunc:
 
 
 class Node:
-    def __init__(self,X,Y,t=0,edge=False,Tau=None):
+    def __init__(self,X,Y,t=0,edge=False):
         self.X=X
         self.Y=Y
-        self.Tau=Tau
         self.edge=edge
         self.t=t
     def __repr__(self):
         return "({0},{1})".format(self.X,self.Y)
     def __str__(self):
-        return "({0},{1},Tau={2},edge={3})".format(self.X,self.Y,self.Tau,self.edge)
+        return "({0},{1},t={2},edge={3})".format(self.X,self.Y,self.t,self.edge)
     def __setitem__(self,index,value):
         self.__dict__[index]=value
     def __getitem__(self,index):
@@ -320,6 +319,5 @@ if __name__=='__main__':
 #        print(t1,t2,sep='\n')
         g.updateNodes(t1,'t')
         tau+=globalData['dTau']
-#        g.updateNodes([tau for x in range(g.nn)],'Tau')
     print(g.printNodeAttrs('t'))
     print("time: ",time.clock()-start)
