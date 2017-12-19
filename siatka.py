@@ -20,13 +20,14 @@ def loadData(fileName):
     return data
 
 def printSeq(seq,prec):
+    formatstr="{0: >"+str(prec+6)+"."+str(prec)+"f}"
     res=""
     for x in seq:
-        res+=("{0: ^"+str(prec+3)+"."+str(prec)+"f}\t").format(float(x))
+        res+=formatstr.format(float(x))
     return res
 
 def printSeq2(seq,prec):
-    formatstr="{0: ^"+str(prec+4)+"."+str(prec)+"f}"
+    formatstr="{0: >"+str(prec+6)+"."+str(prec)+"f}"
     res=""
     for x in seq:
         for y in x:
@@ -77,7 +78,7 @@ class Element:
             if self.surface[i]['edge']:
                 self.edge=True
             self.surface[i]['len']=((nodes[(i+3)%4].X - nodes[(i+4)%4].X)**2 + (nodes[(i+3)%4].Y - nodes[(i+4)%4].Y)**2)**0.5
-        self.points=[]
+        self.points=None
         self.H=None
         self.P=None
         self.C=None
@@ -162,9 +163,10 @@ class Compute:
         self.w=gaussW
         self.lenGauss=len(self.q)
         self.points=[dict([('q',(gaussQ[i],gaussQ[j])),('w',gaussW[i]*gaussW[j]),('N',np.array([n(gaussQ[i],gaussQ[j]) for n in self.N]))]) for i in range(len(gaussQ)) for j in range(len(gaussQ))]
+        
         s=0
-        for x in self.points:
-            s+=x['w']
+        for point in self.points:
+            s+=sum(point['q'])*point['w']
         print(s)
         for point in self.points:
             point['N^2']=np.matmul(np.transpose(np.array([point['N']])),np.array([point['N']]))
@@ -194,7 +196,9 @@ class Compute:
                 surfaces[i][j]['w']=self.w[j]
                 surfaces[i][j]['N^2']=np.matmul(np.transpose(np.array([surfaces[i][j]['N']])),np.array([surfaces[i][j]['N']]))
         self.surface=surfaces
+       # print(self.surface)
     def compElementPoints(self,element):
+        element.points=[]
         for i in range(self.lenPoints):
             element.points.append(dict())
             for vG in self.globVar:
@@ -218,6 +222,7 @@ class Compute:
             dNdY=[]
             for j in range(self.lenN):
                 res=element.points[i]['1/detJ']*np.dot(element.points[i]['J^-1'],np.array([self.points[i]['dNdXsi'][j],self.points[i]['dNdEta'][j]]))
+                print(res)
                 dNdX.append(res[0])
                 dNdY.append(res[1])
             element.points[i]['dNdX']=np.array(dNdX)
@@ -272,6 +277,7 @@ class Compute:
                     HH[element.ids[i]][element.ids[j]]+=H[i][j]
                     CC[element.ids[i]][element.ids[j]]+=C[i][j]
         A=np.array(HH)+np.array(CC)/dTau
+        #print(printSeq2(CC,4))
         B=np.matmul(np.array(CC),np.transpose(np.array([grid['t']])))/dTau-np.transpose(np.array([PP]))
         return lg.solve(A,B)
     
@@ -293,7 +299,6 @@ class Compute:
                     CCt0[element.ids[i]][element.ids[j]]+=Ct0[i][j]
         CCt0s=np.sum(CCt0,axis=0)
         A=np.array(HH)+np.array(CC)/dTau
-        print(printSeq2(A,4))
         B=CCt0s/dTau-np.array(PP)
         return lg.solve(A,B)
     
@@ -302,7 +307,8 @@ class Compute:
             self.compElementPoints(element)
             self.compFunctionalMatrices(element,k,alfa,c,ro,tInf)
         t1=self.compTempPoints(grid,dTau)
-        t2=self.compTempPointsIntra(grid,dTau)
+        t2=[0]
+#        t2=self.compTempPointsIntra(grid,dTau)
         return (np.reshape(t1,len(t1)),np.reshape(t2,len(t2)))
 
 
@@ -331,7 +337,7 @@ if __name__=='__main__':
     while tau<globalData['tau']:
         t1,t2=x.compGridTemp(g,k=globalData['k'],alfa=globalData['alfa'],c=globalData['c'],ro=globalData['ro'],tInf=globalData['tInf'],dTau=globalData['dTau'])
 #        print(printSeq(t1,16),printSeq(t2,16),sep='\n')
-        g.updateNodes(t2,'t')
+        g.updateNodes(t1,'t')
         tau+=globalData['dTau']
-        #print(g.printNodeAttrs('t'))
+        print(g.printNodeAttrs('t'))
     print("time: ",time.clock()-start)
