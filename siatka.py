@@ -25,6 +25,15 @@ def printSeq(seq,prec):
         res+=("{0: ^"+str(prec+3)+"."+str(prec)+"f}\t").format(float(x))
     return res
 
+def printSeq2(seq,prec):
+    formatstr="{0: ^"+str(prec+4)+"."+str(prec)+"f}"
+    res=""
+    for x in seq:
+        for y in x:
+            res+=formatstr.format(float(y))
+        res+="\n"
+    return res
+
 class ShapeFunc:
     def __init__(self, f, dFd):
         self.f = f
@@ -153,7 +162,10 @@ class Compute:
         self.w=gaussW
         self.lenGauss=len(self.q)
         self.points=[dict([('q',(gaussQ[i],gaussQ[j])),('w',gaussW[i]*gaussW[j]),('N',np.array([n(gaussQ[i],gaussQ[j]) for n in self.N]))]) for i in range(len(gaussQ)) for j in range(len(gaussQ))]
-        print(self.points)
+        s=0
+        for x in self.points:
+            s+=x['w']
+        print(s)
         for point in self.points:
             point['N^2']=np.matmul(np.transpose(np.array([point['N']])),np.array([point['N']]))
         for point in self.points:
@@ -281,9 +293,7 @@ class Compute:
                     CCt0[element.ids[i]][element.ids[j]]+=Ct0[i][j]
         CCt0s=np.sum(CCt0,axis=0)
         A=np.array(HH)+np.array(CC)/dTau
-        for x in A:
-            print(printSeq(x,3))
-        print()
+        print(printSeq2(A,4))
         B=CCt0s/dTau-np.array(PP)
         return lg.solve(A,B)
     
@@ -323,5 +333,5 @@ if __name__=='__main__':
 #        print(printSeq(t1,16),printSeq(t2,16),sep='\n')
         g.updateNodes(t2,'t')
         tau+=globalData['dTau']
-        print(g.printNodeAttrs('t'))
+        #print(g.printNodeAttrs('t'))
     print("time: ",time.clock()-start)
