@@ -164,17 +164,13 @@ class Compute:
         self.lenGauss=len(self.q)
         self.points=[dict([('q',(gaussQ[i],gaussQ[j])),('w',gaussW[i]*gaussW[j]),('N',np.array([n(gaussQ[i],gaussQ[j]) for n in self.N]))]) for i in range(len(gaussQ)) for j in range(len(gaussQ))]
         
-        s=0
-        for point in self.points:
-            s+=sum(point['q'])*point['w']
-        print(s)
         for point in self.points:
             point['N^2']=np.matmul(np.transpose(np.array([point['N']])),np.array([point['N']]))
         for point in self.points:
             for v in self.locVar:
                 listdNd=[]
                 for n in self.N:
-                    listdNd.append(n[v](*point['q'])*point['w'])
+                    listdNd.append(n[v](*point['q']))
                 point['dNd'+v]=np.array(listdNd)
         self.lenPoints=len(self.points)
         surfaces=[[dict() for y in range(self.lenGauss)] for x in range(4)]
@@ -196,7 +192,6 @@ class Compute:
                 surfaces[i][j]['w']=self.w[j]
                 surfaces[i][j]['N^2']=np.matmul(np.transpose(np.array([surfaces[i][j]['N']])),np.array([surfaces[i][j]['N']]))
         self.surface=surfaces
-       # print(self.surface)
     def compElementPoints(self,element):
         element.points=[]
         for i in range(self.lenPoints):
@@ -204,17 +199,14 @@ class Compute:
             for vG in self.globVar:
                 for vL in self.locVar:
                     element.points[i]['d'+vG+'d'+vL]=np.dot(self.points[i]['dNd'+vL],element[vG])
-
             J=np.array([
                     [element.points[i]['dXdXsi'],element.points[i]['dYdXsi']],
                     [element.points[i]['dXdEta'],element.points[i]['dYdEta']]
                     ])
-
             element.points[i]['J^-1']=np.array([
                     [J[1,1],-J[0,1]],
                     [-J[1,0],J[0,0]]
                     ])
-
             detJ=lg.det(J)
             element.points[i]['detJ']=detJ
             element.points[i]['1/detJ']=1.0/detJ
@@ -222,7 +214,6 @@ class Compute:
             dNdY=[]
             for j in range(self.lenN):
                 res=element.points[i]['1/detJ']*np.dot(element.points[i]['J^-1'],np.array([self.points[i]['dNdXsi'][j],self.points[i]['dNdEta'][j]]))
-                print(res)
                 dNdX.append(res[0])
                 dNdY.append(res[1])
             element.points[i]['dNdX']=np.array(dNdX)
@@ -251,10 +242,10 @@ class Compute:
                     H=0
                     P=0
                     for point in self.surface[j]:
-                        H+= point['N^2']*point['w']*element.surface[j]['len']
-                        P+= point['N']*point['w']*element.surface[j]['len']
-                    H=H*alfa*0.5
-                    P=P*-alfa*tInf*0.5
+                        H+= point['N^2']*point['w']
+                        P+= point['N']*point['w']
+                    H=H*alfa*0.5*element.surface[j]['len']
+                    P=P*-alfa*tInf*0.5*element.surface[j]['len']
                     element.surface[j]['H']=np.array(H)
                     element.surface[j]['P']=np.array(P)
                     elemH+=H
@@ -277,7 +268,7 @@ class Compute:
                     HH[element.ids[i]][element.ids[j]]+=H[i][j]
                     CC[element.ids[i]][element.ids[j]]+=C[i][j]
         A=np.array(HH)+np.array(CC)/dTau
-        #print(printSeq2(CC,4))
+        #print(printSeq2(A,4))
         B=np.matmul(np.array(CC),np.transpose(np.array([grid['t']])))/dTau-np.transpose(np.array([PP]))
         return lg.solve(A,B)
     
