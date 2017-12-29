@@ -193,27 +193,27 @@ class Compute:
                 surfaces[i][j]['N^2']=np.matmul(np.transpose(np.array([surfaces[i][j]['N']])),np.array([surfaces[i][j]['N']]))
         self.surface=surfaces
     def compElementPoints(self,element):
+        for vG in self.globVar:
+            for vL in self.locVar:
+                element.__dict__['d'+vG+'d'+vL]=np.dot(self.points[0]['dNd'+vL],element[vG])
+        J=np.array([
+                [element.__dict__['dXdXsi'],element.__dict__['dYdXsi']],
+                [element.__dict__['dXdEta'],element.__dict__['dYdEta']]
+                ])
+        element.__dict__['J^-1']=np.array([
+                [J[1,1],-J[0,1]],
+                [-J[1,0],J[0,0]]
+                ])
+        detJ=lg.det(J)
+        element.__dict__['detJ']=detJ
+        element.__dict__['1/detJ']=1.0/detJ
         element.points=[]
         for i in range(self.lenPoints):
             element.points.append(dict())
-            for vG in self.globVar:
-                for vL in self.locVar:
-                    element.points[i]['d'+vG+'d'+vL]=np.dot(self.points[i]['dNd'+vL],element[vG])
-            J=np.array([
-                    [element.points[i]['dXdXsi'],element.points[i]['dYdXsi']],
-                    [element.points[i]['dXdEta'],element.points[i]['dYdEta']]
-                    ])
-            element.points[i]['J^-1']=np.array([
-                    [J[1,1],-J[0,1]],
-                    [-J[1,0],J[0,0]]
-                    ])
-            detJ=lg.det(J)
-            element.points[i]['detJ']=detJ
-            element.points[i]['1/detJ']=1.0/detJ
             dNdX=[]
             dNdY=[]
             for j in range(self.lenN):
-                res=element.points[i]['1/detJ']*np.dot(element.points[i]['J^-1'],np.array([self.points[i]['dNdXsi'][j],self.points[i]['dNdEta'][j]]))
+                res=element.__dict__['1/detJ']*np.dot(element.__dict__['J^-1'],np.array([self.points[i]['dNdXsi'][j],self.points[i]['dNdEta'][j]]))
                 dNdX.append(res[0])
                 dNdY.append(res[1])
             element.points[i]['dNdX']=np.array(dNdX)
@@ -227,15 +227,14 @@ class Compute:
             H=0
             for v in self.globVar:
                 H=np.add(np.matmul(np.transpose(np.array([element.points[i]['dNd'+v]])),np.array([element.points[i]['dNd'+v]])),H)
-            H=H*k*element.points[i]['detJ']*self.points[i]['w']
-            C=c*ro*self.points[i]['N^2']*element.points[i]['detJ']*self.points[i]['w']
-            Ct0=c*ro*self.points[i]['N^2']*element.points[i]['detJ']*self.points[i]['w']*np.dot(element['t'],self.points[i]['N'])
-            element.points[i]['H']=np.array(H)
-            element.points[i]['C']=np.array(C)
-            element.points[i]['Ct0']=np.array(Ct0)
-            elemH+=H
-            elemC+=C
-            elemCt0+=Ct0
+            elemH+=H*self.points[i]['w']
+            elemC+=self.points[i]['N^2']*self.points[i]['w']
+            elemCt0+=self.points[i]['N^2']*self.points[i]['w']*np.dot(element['t'],self.points[i]['N'])
+        elemH*=k*element.__dict__['detJ']
+        elemC*=c*ro*element.__dict__['detJ']
+        elemCt0*=c*ro*element.__dict__['detJ']
+        surfaceH=0
+        surfaceP=0
         if element.edge:
             for j in range(len(element.surface)):
                 if element.surface[j]['edge']:
@@ -244,14 +243,12 @@ class Compute:
                     for point in self.surface[j]:
                         H+= point['N^2']*point['w']
                         P+= point['N']*point['w']
-                    H=H*alfa*0.5*element.surface[j]['len']
-                    P=P*-alfa*tInf*0.5*element.surface[j]['len']
-                    element.surface[j]['H']=np.array(H)
-                    element.surface[j]['P']=np.array(P)
-                    elemH+=H
-                    elemP+=P
-        element.H=np.array(elemH)
-        element.P=np.array(elemP)
+                    surfaceH+=H*element.surface[j]['len']
+                    surfaceP+=P*element.surface[j]['len']
+        surfaceH*=alfa*0.5
+        surfaceP*=-alfa*tInf*0.5
+        element.H=np.array(elemH+surfaceH)
+        element.P=np.array(elemP+surfaceP)
         element.C=np.array(elemC)
         element.Ct0=np.array(elemCt0)
     def compTempPoints(self,grid,dTau):
@@ -268,7 +265,6 @@ class Compute:
                     HH[element.ids[i]][element.ids[j]]+=H[i][j]
                     CC[element.ids[i]][element.ids[j]]+=C[i][j]
         A=np.array(HH)+np.array(CC)/dTau
-        #print(printSeq2(A,4))
         B=np.matmul(np.array(CC),np.transpose(np.array([grid['t']])))/dTau-np.transpose(np.array([PP]))
         return lg.solve(A,B)
     
@@ -298,9 +294,8 @@ class Compute:
             self.compElementPoints(element)
             self.compFunctionalMatrices(element,k,alfa,c,ro,tInf)
         t1=self.compTempPoints(grid,dTau)
-        t2=[0]
-#        t2=self.compTempPointsIntra(grid,dTau)
-        return (np.reshape(t1,len(t1)),np.reshape(t2,len(t2)))
+        #t1=self.compTempPointsIntra(grid,dTau)
+        return np.reshape(t1,len(t1))
 
 
 if __name__=='__main__':
@@ -326,8 +321,7 @@ if __name__=='__main__':
     tau=0.0
     start=time.clock()
     while tau<globalData['tau']:
-        t1,t2=x.compGridTemp(g,k=globalData['k'],alfa=globalData['alfa'],c=globalData['c'],ro=globalData['ro'],tInf=globalData['tInf'],dTau=globalData['dTau'])
-#        print(printSeq(t1,16),printSeq(t2,16),sep='\n')
+        t1=x.compGridTemp(g,k=globalData['k'],alfa=globalData['alfa'],c=globalData['c'],ro=globalData['ro'],tInf=globalData['tInf'],dTau=globalData['dTau'])
         g.updateNodes(t1,'t')
         tau+=globalData['dTau']
         print(g.printNodeAttrs('t'))
