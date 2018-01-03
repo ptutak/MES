@@ -304,7 +304,7 @@ class Compute:
 
 
 if __name__=='__main__':
-    globalData=loadData('data.txt')
+    globalData=loadData('data.yml')
     print(globalData)
     g=Grid(globalData['B'],globalData['H'],globalData['nB'],globalData['nH'],globalData['t0'])
     n1=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1-eta),
