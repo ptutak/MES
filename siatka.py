@@ -82,7 +82,6 @@ class Element:
         self.H=None
         self.P=None
         self.C=None
-        self.Ct0=None
     def __repr__(self):
         rep="{3!r} {2!r}\n{0!r} {1!r}\n{4!r}\n".format(*self.ids,self.surface)
         return rep
@@ -221,7 +220,6 @@ class Compute:
     def compFunctionalMatrices(self,element,k,alfa,c,ro,tInf):
         elemH=0
         elemC=0
-        elemCt0=0
         elemP=np.array([0.0 for x in range(self.lenN)])
         for i in range(self.lenPoints):
             H=0
@@ -229,10 +227,8 @@ class Compute:
                 H=np.add(np.matmul(np.transpose(np.array([element.points[i]['dNd'+v]])),np.array([element.points[i]['dNd'+v]])),H)
             elemH+=H*self.points[i]['w']
             elemC+=self.points[i]['N^2']*self.points[i]['w']
-            elemCt0+=self.points[i]['N^2']*self.points[i]['w']*np.dot(element['t'],self.points[i]['N'])
         elemH*=k*element.__dict__['detJ']
         elemC*=c*ro*element.__dict__['detJ']
-        elemCt0*=c*ro*element.__dict__['detJ']
         surfaceH=0
         surfaceP=0
         if element.edge:
@@ -250,7 +246,6 @@ class Compute:
         element.H=np.array(elemH+surfaceH)
         element.P=np.array(elemP+surfaceP)
         element.C=np.array(elemC)
-        element.Ct0=np.array(elemCt0)
     def compTempPoints(self,grid,dTau):
         HH=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
         CC=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
@@ -267,34 +262,12 @@ class Compute:
         A=np.array(HH)+np.array(CC)/dTau
         B=np.matmul(np.array(CC),np.transpose(np.array([grid['t']])))/dTau-np.transpose(np.array([PP]))
         return lg.solve(A,B)
-    
-    def compTempPointsIntra(self,grid,dTau):
-        HH=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
-        CC=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
-        CCt0=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
-        PP=[0 for x in range(grid.nn)]
-        for element in grid:
-            C=element.C
-            Ct0=element.Ct0
-            H=element.H
-            P=element.P
-            for i in range(self.lenN):
-                PP[element.ids[i]]+=P[i]
-                for j in range(self.lenN):
-                    HH[element.ids[i]][element.ids[j]]+=H[i][j]
-                    CC[element.ids[i]][element.ids[j]]+=C[i][j]
-                    CCt0[element.ids[i]][element.ids[j]]+=Ct0[i][j]
-        CCt0s=np.sum(CCt0,axis=0)
-        A=np.array(HH)+np.array(CC)/dTau
-        B=CCt0s/dTau-np.array(PP)
-        return lg.solve(A,B)
-    
+
     def compGridTemp(self, grid, k, alfa, c, ro, tInf,dTau):
         for element in grid:
             self.compElementPoints(element)
             self.compFunctionalMatrices(element,k,alfa,c,ro,tInf)
         t1=self.compTempPoints(grid,dTau)
-        #t1=self.compTempPointsIntra(grid,dTau)
         return np.reshape(t1,len(t1))
 
 
