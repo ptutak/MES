@@ -7,16 +7,16 @@ H: 0.1
 nB: 4
 #Ilosc punktow wysokosci
 nH: 4
-#Temperatura poczatkowa
-t0: 100.0
-#Brzegi
-edges: 
 #Czas koncowy
 tau: 500.0
 #Przyrost czasowy
 dTau: 50.0
+#Temperatura poczatkowa
+t0: 100.0
 #Temperatura otoczenia
 tInf: 1200.0
+#Brzegi
+edges: '[(i+1)//4+(-i+4)//4 for i in range(4) for j in range(4)]'
 #Wspolczynnik przejmowania ciepla
 alfa: 300.0
 #Cieplo wlasciwe

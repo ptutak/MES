@@ -117,6 +117,8 @@ class Grid:
             t0=iter(t0)
         else:
             t0=iter([t0 for x in range(self.nn)])
+        if isinstance(edges,abc.Sequence):
+            edges=iter(edges)
         for i in range(nB):
             for j in range(nH):
                 if edges:
@@ -148,11 +150,15 @@ class Grid:
         return len(self.elements)
     def __call__(self,index):
         return self.nodes[index]
-    def printNodeAttrs(self,attr):
+    def printNodeAttrs(self,attr,prec=None):
+        if prec:
+            formatStr="{0: >"+str(prec+6)+"."+str(prec)+"f}"
+        else:
+            formatStr="{0!r:^5}\t"
         res=""
-        for i in range(self.nH):
-            for j in range(self.nB):
-                res+="{0!r:^5}\t".format(self.nodes[i*self.nB+j][attr])
+        for j in range(self.nH-1,-1,-1):
+            for i in range(self.nB):
+                res+=formatStr.format(self.nodes[i*self.nH+j][attr])
             res+="\n\n"
         return res
     def updateNodes(self,values,attr):
