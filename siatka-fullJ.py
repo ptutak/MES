@@ -103,7 +103,7 @@ class Element:
 
 
 class Grid:
-    def __init__(self,B,H,nB,nH,t0=0,x=0,y=0):
+    def __init__(self,B,H,nB,nH,t0=0,edges=False,x=0,y=0):
         self.nB=nB
         self.nH=nH
         self.B=B
@@ -119,10 +119,18 @@ class Grid:
             t0=iter([t0 for x in range(self.nn)])
         for i in range(nB):
             for j in range(nH):
-                if (i==0 or i==nB-1 or j==0 or j==nH-1):
-                    nodes.append(Node(x+self.db*i,y+self.dh*j,next(t0),True))
+                if edges:
+                    nextEdge=False
+                    try:
+                        nextEdge=next(edges)
+                    except (StopIteration):
+                        edges=False
+                    nodes.append(Node(x+self.db*i,y+self.dh*j,next(t0),nextEdge))
                 else:
-                    nodes.append(Node(x+self.db*i,y+self.dh*j,next(t0)))
+                    if (i==0 or i==nB-1 or j==0 or j==nH-1):
+                        nodes.append(Node(x+self.db*i,y+self.dh*j,next(t0),True))
+                    else:
+                        nodes.append(Node(x+self.db*i,y+self.dh*j,next(t0)))
         self.nodes=nodes
         elements=[]
         for i in range(nB-1):
@@ -267,7 +275,6 @@ class Compute:
                     HH[element.ids[i]][element.ids[j]]+=H[i][j]
                     CC[element.ids[i]][element.ids[j]]+=C[i][j]
         A=np.array(HH)+np.array(CC)/dTau
-        #print(printSeq2(A,4))
         B=np.matmul(np.array(CC),np.transpose(np.array([grid['t']])))/dTau-np.transpose(np.array([PP]))
         return lg.solve(A,B)
     """
@@ -293,18 +300,39 @@ class Compute:
         return lg.solve(A,B)
     """
     def compGridTemp(self, grid, k, alfa, c, ro, tInf,dTau):
+        gridLen=len(grid)
+        if isinstance(k,abc.Sequence):
+            k=iter(k)
+        else:
+            k=iter([k for i in range(gridLen)])
+        if isinstance(alfa,abc.Sequence):
+            alfa=iter(alfa)
+        else:
+            alfa=iter([alfa for i in range(gridLen)])
+        if isinstance(c,abc.Sequence):
+            c=iter(c)
+        else:
+            c=iter([c for i in range(gridLen)])
+        if isinstance(ro,abc.Sequence):
+            ro=iter(ro)
+        else:
+            ro=iter([ro for i in range(gridLen)])
+        if isinstance(tInf,abc.Sequence):
+            tInf=iter(tInf)
+        else:
+            tInf=iter([tInf for i in range(gridLen)])
+        
         for element in grid:
             self.compElementPoints(element)
-            self.compFunctionalMatrices(element,k,alfa,c,ro,tInf)
+            self.compFunctionalMatrices(element,next(k),next(alfa),next(c),next(ro),next(tInf))
         t1=self.compTempPoints(grid,dTau)
-#        t2=self.compTempPointsIntra(grid,dTau)
         return (np.reshape(t1,len(t1)))
 
 
 if __name__=='__main__':
     globalData=loadData('data.yml')
     print(globalData)
-    g=Grid(globalData['B'],globalData['H'],globalData['nB'],globalData['nH'],globalData['t0'])
+    g=Grid(globalData['B'],globalData['H'],globalData['nB'],globalData['nH'],globalData['t0'],globalData['edges'])
     n1=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1-eta),
                  {'Xsi':lambda xsi,eta:-0.25*(1-eta),
                   'Eta':lambda xsi,eta:-0.25*(1-xsi)})

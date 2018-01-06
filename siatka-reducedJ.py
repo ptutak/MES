@@ -278,8 +278,6 @@ if __name__=='__main__':
     globalData=loadData('data.yml')
     print(globalData)
     g=Grid(globalData['B'],globalData['H'],globalData['nB'],globalData['nH'],globalData['t0'])
-    g(6).Y*=1.2
-    print(g(6))
     n1=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1-eta),
                  {'Xsi':lambda xsi,eta:-0.25*(1-eta),
                   'Eta':lambda xsi,eta:-0.25*(1-xsi)})

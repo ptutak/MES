@@ -9,6 +9,8 @@ nB: 4
 nH: 4
 #Temperatura poczatkowa
 t0: 100.0
+#Brzegi
+edges: 
 #Czas koncowy
 tau: 500.0
 #Przyrost czasowy
