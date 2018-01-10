@@ -339,6 +339,9 @@ if __name__=='__main__':
     globalData=loadData('data.yml')
     print(globalData)
     g=Grid(globalData['B'],globalData['H'],globalData['nB'],globalData['nH'],globalData['t0'],globalData['edges'])
+    print(g.ne)
+    print(g.printNodeAttrs('edge'))
+    input()
     n1=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1-eta),
                  {'Xsi':lambda xsi,eta:-0.25*(1-eta),
                   'Eta':lambda xsi,eta:-0.25*(1-xsi)})
@@ -354,7 +357,7 @@ if __name__=='__main__':
 
     x=Compute([n1,n2,n3,n4],dict([('X','Xsi'),('Y','Eta')]),[-0.7745966692414834,0.0,0.7745966692414834],[0.5555555555555556,0.8888888888888888,0.5555555555555556])
 #    x=Compute([n1,n2,n3,n4],dict([('X','Xsi'),('Y','Eta')]),[-1.0/np.sqrt(3),1.0/np.sqrt(3)],[1.0,1.0])
-
+    
     tau=0.0
     start=time.clock()
     while tau<globalData['tau']:
@@ -364,3 +367,4 @@ if __name__=='__main__':
         tau+=globalData['dTau']
         print(g.printNodeAttrs('t'))
     print("time: ",time.clock()-start)
+    
