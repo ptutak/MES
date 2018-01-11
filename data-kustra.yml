@@ -1,0 +1,27 @@
+#Dane globalne:
+#Szerokosc
+B: 0.1
+#Wysokosc
+H: 0.1
+#Ilosc punktow szerokosci
+nB: 4
+#Ilosc punktow wysokosci
+nH: 4
+#Czas koncowy
+tau: 500.0
+#Przyrost czasowy
+dTau: 50.0
+#Temperatura poczatkowa
+t0: 100.0
+#Temperatura otoczenia
+tInf: 1200
+#Brzegi
+edges: 'None'
+#Wspolczynnik przejmowania ciepla
+alfa: 300
+#Cieplo wlasciwe
+c: 700
+#Wspolczynnik przewodzenia ciepla
+k: 25
+#Gestość
+ro: 7800

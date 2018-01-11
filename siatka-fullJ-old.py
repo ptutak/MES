@@ -82,6 +82,7 @@ class Element:
         self.H=None
         self.P=None
         self.C=None
+#        self.Ct0=None
         self.k=None
         self.ro=None
         self.c=None
@@ -253,6 +254,7 @@ class Compute:
     def compFunctionalMatrices(self,element,alfa,tInf):
         elemH=0
         elemC=0
+#        elemCt0=0
         elemP=np.array([0.0 for x in range(self.lenN)])
         for i in range(self.lenPoints):
             H=0
@@ -260,9 +262,12 @@ class Compute:
                 H=np.add(np.matmul(np.transpose(np.array([element.points[i]['dNd'+v]])),np.array([element.points[i]['dNd'+v]])),H)
             elemH+=H*element.points[i]['detJ']*self.points[i]['w']
             C=self.points[i]['N^2']*element.points[i]['detJ']*self.points[i]['w']
+#            Ct0=C*np.dot(element['t'],self.points[i]['N'])
             elemC+=C
+#            elemCt0+=Ct0
         elemH*=element.k
         elemC*=element.c*element.ro
+#        elemCt0*=c*ro
         surfaceH=0
         surfaceP=0
         if element.edge:
@@ -280,6 +285,7 @@ class Compute:
         element.H=np.array(elemH+surfaceH)
         element.P=np.array(elemP+surfaceP)
         element.C=np.array(elemC)
+#        element.Ct0=np.array(elemCt0)
     def compTempPoints(self,grid,dTau):
         HH=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
         CC=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
@@ -296,10 +302,32 @@ class Compute:
         A=np.array(HH)+np.array(CC)/dTau
         B=np.matmul(np.array(CC),np.transpose(np.array([grid['t']])))/dTau-np.transpose(np.array([PP]))
         return lg.solve(A,B)
+    """
+    def compTempPointsIntra(self,grid,dTau):
+        HH=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
+        CC=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
+        CCt0=[[0 for y in range(grid.nn)] for x in range(grid.nn)]
+        PP=[0 for x in range(grid.nn)]
+        for element in grid:
+            C=element.C
+            Ct0=element.Ct0
+            H=element.H
+            P=element.P
+            for i in range(self.lenN):
+                PP[element.ids[i]]+=P[i]
+                for j in range(self.lenN):
+                    HH[element.ids[i]][element.ids[j]]+=H[i][j]
+                    CC[element.ids[i]][element.ids[j]]+=C[i][j]
+                    CCt0[element.ids[i]][element.ids[j]]+=Ct0[i][j]
+        CCt0s=np.sum(CCt0,axis=0)
+        A=np.array(HH)+np.array(CC)/dTau
+        B=CCt0s/dTau-np.array(PP)
+        return lg.solve(A,B)
+    """
     def compGridElemPoints(self,grid):
         for elem in grid:
             self.compElementPoints(elem)
-    def compGridTempPoints(self, grid, alfa,tInf,dTau):
+    def compGridTemp(self, grid, alfa,tInf,dTau):
         gridLen=len(grid)
         if isinstance(alfa,abc.Sequence):
             alfa=iter(alfa)
@@ -310,6 +338,7 @@ class Compute:
         else:
             tInf=iter([tInf for i in range(gridLen)])
         for element in grid:
+            self.compElementPoints(element)
             self.compFunctionalMatrices(element,next(alfa),next(tInf))
         t1=self.compTempPoints(grid,dTau)
         return (np.reshape(t1,len(t1)))
@@ -332,13 +361,15 @@ if __name__=='__main__':
     n4=ShapeFunc(lambda xsi,eta:0.25*(1-xsi)*(1+eta),
                  {'Xsi':lambda xsi,eta:-0.25*(1+eta),
                   'Eta':lambda xsi,eta:0.25*(1-xsi)})
+
 #    x=Compute([n1,n2,n3,n4],dict([('X','Xsi'),('Y','Eta')]),[-0.7745966692414834,0.0,0.7745966692414834],[0.5555555555555556,0.8888888888888888,0.5555555555555556])
     x=Compute([n1,n2,n3,n4],dict([('X','Xsi'),('Y','Eta')]),[-1.0/np.sqrt(3),1.0/np.sqrt(3)],[1.0,1.0])
     x.compGridElemPoints(g)
     tau=0.0
     start=time.clock()
     while tau<globalData['tau']:
-        t1=x.compGridTempPoints(g,alfa=globalData['alfa'],tInf=globalData['tInf'],dTau=globalData['dTau'])
+        t1=x.compGridTemp(g,alfa=globalData['alfa'],tInf=globalData['tInf'],dTau=globalData['dTau'])
+#        print(printSeq(t1,16),printSeq(t2,16),sep='\n')
         g.updateNodes(t1,'t')
         tau+=globalData['dTau']
         print(g.printNodeAttrs('t'))
