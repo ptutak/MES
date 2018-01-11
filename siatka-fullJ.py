@@ -12,11 +12,6 @@ import time
 import matplotlib.pyplot as plt
 from matplotlib import cm as cm
 
-def plotSurface(data):
-    plt.imshow(data,cmap=cm.jet,interpolation='bicubic')
-    plt.colorbar()
-    plt.show()
-
 def loadData(fileName):
     data = {}
     with open(fileName) as file:
@@ -320,11 +315,26 @@ class Compute:
             self.compFunctionalMatrices(element,next(alfa),next(tInf))
         t1=self.compTempPoints(grid,dTau)
         return (np.reshape(t1,len(t1)))
+    def compComplex(self,grid,alfa,tInf,dTau):
+        gridLen=len(grid)
+        if isinstance(alfa,abc.Sequence):
+            alfa=iter(alfa)
+        else:
+            alfa=iter([alfa for i in range(gridLen)])
+        if isinstance(tInf,abc.Sequence):
+            tInf=iter(tInf)
+        else:
+            tInf=iter([tInf for i in range(gridLen)])
+        for element in grid:
+            self.compElementPoints(element)
+            self.compFunctionalMatrices(element,next(alfa),next(tInf))
+        t1=self.compTempPoints(grid,dTau)
+        return (np.reshape(t1,len(t1)))
 
 
 
 if __name__=='__main__':
-    globalData=loadData('data.yml')
+    globalData=loadData('data-kustra.yml')
     print(globalData)
     g=Grid(globalData['B'],globalData['H'],globalData['nB'],globalData['nH'],globalData['t0'],globalData['edges'])
     g.setElemPhysParams(k=globalData['k'],ro=globalData['ro'],c=globalData['c'])
@@ -348,10 +358,13 @@ if __name__=='__main__':
     while tau<globalData['tau']:
         t1=x.compGridTempPoints(g,alfa=globalData['alfa'],tInf=globalData['tInf'],dTau=globalData['dTau'])
         g.updateNodes(t1,'t')
+        mint1=min(t1)
+        maxt1=max(t1)
         t1=np.transpose(np.reshape(t1,(globalData['nB'],globalData['nH'])))
-        plotSurface(t1)
+        plt.imshow(t1,cmap=cm.jet,interpolation='bicubic',aspect=None,origin='lower',vmax=maxt1*1.1,vmin=mint1*0.6)
+        plt.colorbar()
+        plt.show()
         print()
         tau+=globalData['dTau']
-#        print(g.printNodeAttrs('t'))
     print("time: ",time.clock()-start)
     
