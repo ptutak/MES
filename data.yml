@@ -8,7 +8,7 @@ nB: 54
 #Ilosc punktow wysokosci
 nH: 2
 #Czas koncowy
-tau: '3600.0*24*2'
+tau: '3600.0*24*4'
 #Przyrost czasowy
 dTau: 30.0
 #Temperatura poczatkowa

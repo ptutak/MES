@@ -8,7 +8,7 @@ nB: 4
 #Ilosc punktow wysokosci
 nH: 4
 #Czas koncowy
-tau: 500.0
+tau: 50000.0
 #Przyrost czasowy
 dTau: 50.0
 #Temperatura poczatkowa

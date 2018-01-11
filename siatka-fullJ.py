@@ -334,7 +334,7 @@ class Compute:
 
 
 if __name__=='__main__':
-    globalData=loadData('data-kustra.yml')
+    globalData=loadData('data.yml')
     print(globalData)
     g=Grid(globalData['B'],globalData['H'],globalData['nB'],globalData['nH'],globalData['t0'],globalData['edges'])
     g.setElemPhysParams(k=globalData['k'],ro=globalData['ro'],c=globalData['c'])
@@ -354,17 +354,23 @@ if __name__=='__main__':
     x=Compute([n1,n2,n3,n4],dict([('X','Xsi'),('Y','Eta')]),[-1.0/np.sqrt(3),1.0/np.sqrt(3)],[1.0,1.0])
     x.compGridElemPoints(g)
     tau=0.0
+    results=[]
     start=time.clock()
     while tau<globalData['tau']:
         t1=x.compGridTempPoints(g,alfa=globalData['alfa'],tInf=globalData['tInf'],dTau=globalData['dTau'])
         g.updateNodes(t1,'t')
-        mint1=min(t1)
-        maxt1=max(t1)
-        t1=np.transpose(np.reshape(t1,(globalData['nB'],globalData['nH'])))
-        plt.imshow(t1,cmap=cm.jet,interpolation='bicubic',aspect=None,origin='lower',vmax=maxt1*1.1,vmin=mint1*0.6)
-        plt.colorbar()
-        plt.show()
-        print()
         tau+=globalData['dTau']
+        if (tau%7200.0==0):
+            t1=np.transpose(np.reshape(t1,(globalData['nB'],globalData['nH'])))
+            results.append((t1,tau))
+            plt.imshow(t1,cmap=cm.jet,interpolation='bicubic',aspect='auto',origin='lower',vmax=25,vmin=-5)
+            plt.axvline(0.0)
+            plt.axvline(25.0)
+            plt.axvline(40.0)
+            plt.axvline(53.0)
+            cbar=plt.colorbar()
+            plt.show()
+            print()
     print("time: ",time.clock()-start)
-    
+    for r in results:
+        pass
