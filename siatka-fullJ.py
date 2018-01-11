@@ -9,6 +9,13 @@ import numpy as np
 import scipy.linalg as lg
 from collections import abc
 import time
+import matplotlib.pyplot as plt
+from matplotlib import cm as cm
+
+def plotSurface(data):
+    plt.imshow(data,cmap=cm.jet,interpolation='bicubic')
+    plt.colorbar()
+    plt.show()
 
 def loadData(fileName):
     data = {}
@@ -315,8 +322,9 @@ class Compute:
         return (np.reshape(t1,len(t1)))
 
 
+
 if __name__=='__main__':
-    globalData=loadData('data-kustra.yml')
+    globalData=loadData('data.yml')
     print(globalData)
     g=Grid(globalData['B'],globalData['H'],globalData['nB'],globalData['nH'],globalData['t0'],globalData['edges'])
     g.setElemPhysParams(k=globalData['k'],ro=globalData['ro'],c=globalData['c'])
@@ -340,7 +348,10 @@ if __name__=='__main__':
     while tau<globalData['tau']:
         t1=x.compGridTempPoints(g,alfa=globalData['alfa'],tInf=globalData['tInf'],dTau=globalData['dTau'])
         g.updateNodes(t1,'t')
+        t1=np.transpose(np.reshape(t1,(globalData['nB'],globalData['nH'])))
+        plotSurface(t1)
+        print()
         tau+=globalData['dTau']
-        print(g.printNodeAttrs('t'))
+#        print(g.printNodeAttrs('t'))
     print("time: ",time.clock()-start)
     
