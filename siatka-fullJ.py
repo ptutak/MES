@@ -363,14 +363,35 @@ if __name__=='__main__':
         if (tau%7200.0==0):
             t1=np.transpose(np.reshape(t1,(globalData['nB'],globalData['nH'])))
             results.append((t1,tau))
-            plt.imshow(t1,cmap=cm.jet,interpolation='bicubic',aspect='auto',origin='lower',vmax=25,vmin=-5)
+            plt.axis([0,53,0,1])
             plt.axvline(0.0)
             plt.axvline(25.0)
             plt.axvline(40.0)
             plt.axvline(53.0)
-            cbar=plt.colorbar()
+            plt.imshow(t1,cmap=cm.jet,interpolation='bicubic',aspect='auto',origin='lower',vmax=25,vmin=-5)
+            plt.colorbar()
             plt.show()
             print()
     print("time: ",time.clock()-start)
-    for r in results:
-        pass
+    f,axarr=plt.subplots(len(results))
+    f.set_size_inches((12,6*len(results)))
+    j=0
+    for r,tau in results:
+        axarr[j].set_xlim(0,53)
+        axarr[j].set_xlabel('grubość [cm]')
+        axarr[j].set_ylim(0,1)
+        axarr[j].axvline(0.0)
+        axarr[j].axvline(25.0)
+        axarr[j].axvline(40.0)
+        axarr[j].axvline(53.0)
+        axarr[j].set_title('tau:  '+str(int(tau/3600.0//24.0))+'d '+str(int(tau/3600.0%24.0))+'h')
+        im=axarr[j].imshow(r,cmap=cm.jet,interpolation='bicubic',aspect='auto',origin='lower',vmax=25,vmin=-5)
+        f.colorbar(im,ax=axarr[j])
+        j+=1
+    plt.tight_layout()
+    plt.savefig('results.png')
+    plt.show()
+    with open('results.txt','w') as fileOut:
+        for r,tau in results:
+            print(tau,file=fileOut)
+            print(printSeq2(r,5),file=fileOut)
