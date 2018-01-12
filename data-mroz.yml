@@ -8,14 +8,14 @@ nB: 54
 #Ilosc punktow wysokosci
 nH: 2
 #Czas koncowy
-tau: '3600.0*5'
+tau: '3600.0*24*5'
 #Przyrost czasowy
 dTau: 30.0
 #Temperatura poczatkowa
-t0: 22.0
+t0: 20.0
 #Temperatura otoczenia
 tInf: {
-  '3600.0*24*4':'[22 for i in range(1)]+[0 for i in range(51)]+[-10 for i in range(1)]',
+  '3600.0*24*5':'[22 for i in range(1)]+[0 for i in range(51)]+[-10 for i in range(1)]',
   }
 #Brzegi
 edges: '[1 for i in range(2*1)]+[0 for i in range(2*52)]+[1 for i in range(2*1)]'
@@ -26,4 +26,4 @@ c: '[840 for i in range(1)]+[1000 for i in range(25)]+[1460 for i in range(15)]+
 #Wspolczynnik przewodzenia ciepla
 k: '[0.82 for i in range(1)]+[0.283 for i in range(25)]+[0.04 for i in range(15)]+[1.05 for i in range(12)]'
 #Gestość
-ro: '[1700 for i in range(1)]+[818 for i in range(25)]+[30 for i in range(15)]+[1900 for i in range(12)]'
+ro: '[1850 for i in range(1)]+[818 for i in range(25)]+[30 for i in range(15)]+[1900 for i in range(12)]'
